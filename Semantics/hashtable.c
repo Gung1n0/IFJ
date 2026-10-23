@@ -139,3 +139,23 @@ bool ht_insert(ht_table *t, char *k, void *data)
     }
     return false;
 }
+
+void *ht_get_data(ht_table *t, char *k)
+{
+    if (t == NULL || k == NULL)
+        return NULL;
+
+    if (!ht_search(t, k))
+        return NULL;
+
+    int hashed_key = hashing_function(k);
+
+    for (int i = 0; i < t->capacity; i++)
+    {
+        int index = (hashed_key + i * STEP) % t->capacity;
+        if (!strcmp(t->arr[index].key, k))
+            return t->arr[index].value;
+    }
+
+    return NULL;
+}
