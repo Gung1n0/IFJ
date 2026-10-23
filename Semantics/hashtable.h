@@ -3,32 +3,16 @@
 
 #include <stdbool.h>
 
-typedef struct
-{
-    ht_data *arr;
-    int capacity;
-    int itemsStored;
+typedef struct ht_table ht_table;
 
-} ht_table;
+ht_table *ht_init(void);
 
-typedef struct
-{
-    char *key;
-} ht_key;
-
-typedef struct
-{
-    void *ptr;
-} ht_data;
-
-ht_table *ht_init();
-
-bool ht_insert(ht_table *t, ht_key k, ht_data data);
+bool ht_insert(ht_table *t, char *k, void *data);
 
 void ht_dispose(ht_table *t);
 
-bool ht_search(ht_table *t, ht_key k);
+bool ht_search(ht_table *t, char *k);
 
-ht_data ht_getData(ht_table *t, ht_key k);
+void *ht_getData(ht_table *t, char *k);
 
 #endif
