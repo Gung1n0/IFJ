@@ -72,19 +72,21 @@ token *get_token_from_array(token_array *arr, token_type type, char *data)
     token *curr = &arr->token_data[arr->pos];
 
     bool data_matches = true;
-    if (data != NULL) {
-        if (curr->data == NULL || strcmp(curr->data, data) != 0) {
+    if (data != NULL)
+    {
+        if (curr->data == NULL || strcmp(curr->data, data) != 0)
+        {
             data_matches = false;
         }
     }
 
-    if (curr->type == type && data_matches) {
+    if (curr->type == type && data_matches)
+    {
         skip_token(arr);
         return curr;
     }
 
-    fprintf(stderr, "syntax error\n");
-    exit(SYNTAX_ERROR);
+    print_error("syntax error", SYNTAX_ERROR);
 }
 
 // peek at first token
@@ -94,8 +96,7 @@ token *peek_token_array(token_array *arr, int offset)
     {
         return &arr->token_data[offset + arr->pos];
     }
-    fprintf(stderr, "syntax error\n");
-    exit(SYNTAX_ERROR);
+    print_error("syntax error", SYNTAX_ERROR);
 }
 
 // skip token
@@ -103,6 +104,12 @@ void skip_token(token_array *arr)
 {
     if (arr != NULL && arr->pos < arr->size - 1)
         arr->pos++;
+}
+//prints error message and exists with error code
+void print_error(const char *message, int error_code)
+{
+    fprintf(stderr, "%s\n", message);
+    exit(error_code);
 }
 
 int main(int argc, char const *argv[])
