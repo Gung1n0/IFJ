@@ -66,7 +66,7 @@ int hashing_function(char *string)
 {
     // basic hashing function, changes required after the presentation on the 27.10.2026
     int sum = 0;
-    for (int i = 0; i < strlen(string); i++)
+    for (int i = 0; i < (int)strlen(string); i++)
     {
         sum += string[i];
     }

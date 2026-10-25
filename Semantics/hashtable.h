@@ -13,6 +13,6 @@ void ht_dispose(ht_table *t);
 
 bool ht_search(ht_table *t, char *k);
 
-void *ht_getData(ht_table *t, char *k);
+void *ht_get_data(ht_table *t, char *k);
 
 #endif
