@@ -19,6 +19,13 @@ typedef struct
     ;
 } token_array;
 
+// prints error message and exists with error code
+void print_error(const char *message, int error_code)
+{
+    fprintf(stderr, "%s\n", message);
+    exit(error_code);
+}
+
 // temporary solution for testing without lexer
 token get_token(token_type type, char *data)
 {
@@ -59,11 +66,30 @@ void init_token_array(token_array *arr)
     arr->token_data = NULL;
 }
 
+// enlarge array of tokens by one
+void enlarge_token_array_one(token_array *arr)
+{
+    if (arr == NULL)
+        return;
+
+    bool failed = realloc(arr, arr->size + 1);
+    if (failed)
+        print_error("realloc failed", INTERNAL_ERROR);
+    return;
+}
+
 // destroy token
 void destruct_token(token *t)
 {
     free(t->data);
     t->data = NULL;
+}
+
+// go to next token
+void skip_token(token_array *arr)
+{
+    if (arr != NULL && arr->pos < arr->size - 1)
+        arr->pos++;
 }
 
 // checks and gets current token from array
@@ -87,6 +113,7 @@ token *get_token_from_array(token_array *arr, token_type type, char *data)
     }
 
     print_error("syntax error", SYNTAX_ERROR);
+    return NULL; //Not needed but gcc throws warning without this
 }
 
 // peek at first token
@@ -97,22 +124,49 @@ token *peek_token_array(token_array *arr, int offset)
         return &arr->token_data[offset + arr->pos];
     }
     print_error("syntax error", SYNTAX_ERROR);
+    return NULL; //Not needed but gcc throws warning without this
 }
 
-// skip token
-void skip_token(token_array *arr)
+// works only when all files end with EOF, needs to be checked with ado
+void parse_prologue(token_array *arr)
 {
-    if (arr != NULL && arr->pos < arr->size - 1)
-        arr->pos++;
-}
-//prints error message and exists with error code
-void print_error(const char *message, int error_code)
-{
-    fprintf(stderr, "%s\n", message);
-    exit(error_code);
+    if (arr->size > 0)
+    {
+        token *curr = peek_token_array(arr, 0);
+        // go trough tokens until i get prologue, or syntax error
+
+        while (curr->type != token_keyword)
+        {
+            if (curr->type == token_newline)
+            {
+                skip_token(arr);
+                curr = &arr->token_data[arr->pos];
+            }
+            else
+                print_error("expected prologue", SYNTAX_ERROR);
+            if (arr->pos == arr->size - 1)
+                print_error("expected prologue", SYNTAX_ERROR);
+        }
+
+        if (curr->data == NULL || strcmp(curr->data, "import") != 0)
+            print_error("expected 'import'", SYNTAX_ERROR);
+        
+        skip_token(arr);
+
+        get_token_from_array(arr, token_identifier, "ifj26");
+
+        get_token_from_array(arr, token_specialchar, ".");
+
+        get_token_from_array(arr, token_specialchar, "*");
+
+        get_token_from_array(arr, token_newline, NULL);
+        return;
+    }
+    print_error("expected prologue", SYNTAX_ERROR);
 }
 
 int main(int argc, char const *argv[])
 {
+    printf("%i %s dočasne aby gcc nehadzal warrning \n", argc, argv[0]);
     return 0;
 }

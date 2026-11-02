@@ -7,11 +7,16 @@ typedef enum {
     token_identifier,
     token_keyword,
     token_operator,
-    token_number,
+    token_int,
+    token_double,
     token_string,
-    token_specialChar,
+    token_specialchar,
     token_bracket_variant,
-    token_semicolon
+    token_semicolon,
+    token_indent,
+    token_dedent,
+    token_newline,
+    token_eof
 } token_type;
 
 typedef enum {
