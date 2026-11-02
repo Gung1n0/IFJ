@@ -16,7 +16,6 @@ typedef struct
     token *token_data;
     int size;
     int pos;
-    ;
 } token_array;
 
 // prints error message and exists with error code
@@ -165,9 +164,88 @@ void parse_prologue(token_array *arr)
     print_error("expected prologue", SYNTAX_ERROR);
 }
 
-void parse_inner_function(token_array *arr)
+void parse_function_body(token_array *arr, token *curr)
 {
-    peek_token_array(arr,0); //just temporary so it doesnt throw warning
+    curr = peek_token_array(arr, 0); // temp just for gcc to not throw warning
+    curr->type = token_bracket; //temp just for gcc to not throw warning
+}
+
+void parse_params(token_array *arr, token *curr)
+{
+    while (curr->type != token_bracket)
+    {
+        if (curr->data != NULL)
+        {
+            if (curr->type == token_keyword &&
+                (strcmp(curr->data, "Int") == 0 || strcmp(curr->data, "Unit") == 0 || strcmp(curr->data, "Double") == 0 || strcmp(curr->data, "String") == 0))
+            {
+                skip_token(arr);
+                curr = peek_token_array(arr, 0);
+                if (curr->data == NULL)
+                    print_error("Syntax error, expected ':'", SYNTAX_ERROR);
+                if (curr->type != token_specialchar || strcmp(curr->data, ":") != 0)
+                    print_error("Syntax error, expected ':'", SYNTAX_ERROR);
+
+                skip_token(arr);
+                curr = peek_token_array(arr, 0);
+
+                if (curr->type != token_identifier || curr->data == NULL)
+                    print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+
+                skip_token(arr);
+                curr = peek_token_array(arr, 0);
+            }
+            else
+                print_error("Syntax error, expected keyword", SYNTAX_ERROR);
+        }
+        else
+            print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+    }
+}
+
+// parses head of a function: (n: Int):Int =
+void parse_function_params(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    if (curr->type != token_identifier || curr->data == NULL)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+    skip_token(arr);
+    curr = &arr->token_data[arr->pos];
+
+    get_token_from_array(arr, token_bracket, "(");
+
+    curr = peek_token_array(arr, 0);
+    if (curr->type == token_newline)
+    {
+        get_token_from_array(arr, token_bracket, ")");
+    }
+    else
+    {
+        parse_params(arr, curr);
+        get_token_from_array(arr, token_bracket, ")");
+    }
+
+    get_token_from_array(arr, token_specialchar, ":");
+
+    curr = peek_token_array(arr, 0);
+
+    if (curr->data == NULL)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+
+    if (!(curr->type == token_keyword &&
+          (strcmp(curr->data, "Int") == 0 || strcmp(curr->data, "Unit") == 0 || strcmp(curr->data, "Double") == 0 || strcmp(curr->data, "String") == 0)))
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+
+    get_token_from_array(arr, token_relation_operator, "=");
+
+    curr = peek_token_array(arr, 0);
+    if (curr->type == token_newline && curr->data == NULL)
+    {
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+    }
+
+    parse_function_body(arr, curr);
     return;
 }
 
@@ -180,14 +258,49 @@ void parse_def(token_array *arr, token *curr)
     if (strcmp(curr->data, "def") == 0)
     {
         skip_token(arr);
-        parse_inner_function(arr);
+        parse_function_params(arr);
     }
     else
         print_error("Syntax error", SYNTAX_ERROR);
 }
 
-// parses function
-void parse_funtion(token_array *arr)
+// parses @main def function
+void parse_main(token_array *arr, token *curr)
+{
+    if (strcmp(curr->data, "@") == 0)
+    {
+        skip_token(arr);
+        curr = &arr->token_data[arr->pos];
+        if (curr->type == token_identifier && curr->data != NULL)
+        {
+            if (strcmp(curr->data, "main") == 0)
+            {
+                skip_token(arr);
+
+                curr = peek_token_array(arr, 0);
+                if (curr->type == token_newline && curr->data == NULL)
+                {
+                    skip_token(arr);
+                    curr = peek_token_array(arr, 0);
+                }
+
+                if (curr->type == token_keyword && curr->data != NULL)
+                    parse_def(arr, curr);
+                else
+                    print_error("Syntax error", SYNTAX_ERROR);
+            }
+            else
+                print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+        }
+        else
+            print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+    }
+    else
+        print_error("Syntax error, expected '@'", SYNTAX_ERROR);
+}
+
+//
+void parse_head_funtion(token_array *arr)
 {
     token *curr = peek_token_array(arr, 0);
     while (curr->type != token_eof)
@@ -198,36 +311,7 @@ void parse_funtion(token_array *arr)
         }
         else if (curr->type == token_specialchar && curr->data != NULL)
         {
-            if (strcmp(curr->data, "@") == 0)
-            {
-                skip_token(arr);
-                curr = &arr->token_data[arr->pos];
-                if (curr->type == token_identifier && curr->data != NULL)
-                {
-                    if (strcmp(curr->data, "main") == 0)
-                    {
-                        skip_token(arr);
-
-                        curr = peek_token_array(arr, 0);
-                        if (curr->type == token_newline && curr->data == NULL)
-                        {
-                            skip_token(arr);
-                            curr = peek_token_array(arr, 0);
-                        }
-
-                        if (curr->type == token_keyword && curr->data != NULL)
-                            parse_def(arr, curr);
-                        else
-                            print_error("Syntax error", SYNTAX_ERROR);
-                    }
-                    else
-                        print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
-                }
-                else
-                    print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
-            }
-            else
-                print_error("Syntax error, expected '@'", SYNTAX_ERROR);
+            parse_main(arr, curr);
         }
         else
             print_error("Syntax error", SYNTAX_ERROR);
@@ -241,6 +325,6 @@ int main(int argc, char const *argv[])
 {
     printf("%i %s dočasne aby gcc nehadzal warrning \n", argc, argv[0]);
     // parse_prologue(arr);
-
+    // parse_function(arr);
     return 0;
 }
