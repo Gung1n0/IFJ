@@ -113,7 +113,7 @@ token *get_token_from_array(token_array *arr, token_type type, char *data)
     }
 
     print_error("syntax error", SYNTAX_ERROR);
-    return NULL; //Not needed but gcc throws warning without this
+    return NULL; // Not needed but gcc throws warning without this
 }
 
 // peek at first token
@@ -124,7 +124,7 @@ token *peek_token_array(token_array *arr, int offset)
         return &arr->token_data[offset + arr->pos];
     }
     print_error("syntax error", SYNTAX_ERROR);
-    return NULL; //Not needed but gcc throws warning without this
+    return NULL; // Not needed but gcc throws warning without this
 }
 
 // works only when all files end with EOF, needs to be checked with ado
@@ -150,7 +150,7 @@ void parse_prologue(token_array *arr)
 
         if (curr->data == NULL || strcmp(curr->data, "import") != 0)
             print_error("expected 'import'", SYNTAX_ERROR);
-        
+
         skip_token(arr);
 
         get_token_from_array(arr, token_identifier, "ifj26");
@@ -165,8 +165,82 @@ void parse_prologue(token_array *arr)
     print_error("expected prologue", SYNTAX_ERROR);
 }
 
+void parse_inner_function(token_array *arr)
+{
+    peek_token_array(arr,0); //just temporary so it doesnt throw warning
+    return;
+}
+
+// parses def function
+void parse_def(token_array *arr, token *curr)
+{
+    if (curr->data == NULL)
+        print_error("Syntax error", SYNTAX_ERROR);
+
+    if (strcmp(curr->data, "def") == 0)
+    {
+        skip_token(arr);
+        parse_inner_function(arr);
+    }
+    else
+        print_error("Syntax error", SYNTAX_ERROR);
+}
+
+// parses function
+void parse_funtion(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    while (curr->type != token_eof)
+    {
+        if (curr->type == token_keyword && curr->data != NULL)
+        {
+            parse_def(arr, curr);
+        }
+        else if (curr->type == token_specialchar && curr->data != NULL)
+        {
+            if (strcmp(curr->data, "@") == 0)
+            {
+                skip_token(arr);
+                curr = &arr->token_data[arr->pos];
+                if (curr->type == token_identifier && curr->data != NULL)
+                {
+                    if (strcmp(curr->data, "main") == 0)
+                    {
+                        skip_token(arr);
+
+                        curr = peek_token_array(arr, 0);
+                        if (curr->type == token_newline && curr->data == NULL)
+                        {
+                            skip_token(arr);
+                            curr = peek_token_array(arr, 0);
+                        }
+
+                        if (curr->type == token_keyword && curr->data != NULL)
+                            parse_def(arr, curr);
+                        else
+                            print_error("Syntax error", SYNTAX_ERROR);
+                    }
+                    else
+                        print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+                }
+                else
+                    print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+            }
+            else
+                print_error("Syntax error, expected '@'", SYNTAX_ERROR);
+        }
+        else
+            print_error("Syntax error", SYNTAX_ERROR);
+
+        curr = &arr->token_data[arr->pos];
+    }
+    return;
+}
+
 int main(int argc, char const *argv[])
 {
     printf("%i %s dočasne aby gcc nehadzal warrning \n", argc, argv[0]);
+    // parse_prologue(arr);
+
     return 0;
 }
