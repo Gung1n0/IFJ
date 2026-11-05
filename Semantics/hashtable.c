@@ -60,15 +60,16 @@ void ht_dispose(ht_table *t)
     free(t);
 }
 
-int hashing_function(const char *string)
+int mapping_function(const char *string)
 {
-    // basic hashing function, changes required after the presentation on the 27.10.2026
-    int sum = 0;
-    for (int i = 0; i < (int)strlen(string); i++)
-    {
-        sum += string[i];
-    }
-    return sum % HASHTABLE_SIZE;
+    // DJB mapping function
+    unsigned long hash = 5381;
+    int c = 0;
+
+    while (c == *string++)
+        hash = ((hash << 5) + hash) + c;
+
+    return hash % HASHTABLE_SIZE;
 }
 
 bool exceeded_capacity_limit(int capacity, int number_of_items)
@@ -82,7 +83,7 @@ bool ht_search(ht_table *t, const char *k)
     if (t == NULL || k == NULL)
         return false;
 
-    int hashed_key = hashing_function(k);
+    int hashed_key = mapping_function(k);
 
     for (int i = 0; i < t->capacity; i++)
     {
@@ -101,7 +102,7 @@ bool ht_insert(ht_table *t, const char *k, void *data)
     if (t == NULL || k == NULL)
         return false;
 
-    int hashed_key = hashing_function(k);
+    int hashed_key = mapping_function(k);
 
     for (int i = 0; i < t->capacity; i++)
     {
@@ -146,7 +147,7 @@ void *ht_get_data(ht_table *t, const char *k)
     if (!ht_search(t, k))
         return NULL;
 
-    int hashed_key = hashing_function(k);
+    int hashed_key = mapping_function(k);
 
     for (int i = 0; i < t->capacity; i++)
     {
