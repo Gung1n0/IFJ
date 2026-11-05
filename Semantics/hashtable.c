@@ -64,9 +64,9 @@ int mapping_function(const char *string)
 {
     // DJB mapping function
     unsigned long hash = 5381;
-    int c = 0;
+    int c;
 
-    while (c == *string++)
+    while ((c = *string++))
         hash = ((hash << 5) + hash) + c;
 
     return hash % HASHTABLE_SIZE;
