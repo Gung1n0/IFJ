@@ -42,7 +42,7 @@ sym_table *sym_init(void);
 
 void sym_dispose(sym_table *t);
 
-void sym_enter_scope(sym_table *t);
+bool sym_enter_scope(sym_table *t);
 
 bool sym_exit_scope(sym_table *t);
 

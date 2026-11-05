@@ -33,25 +33,25 @@ struct sym_table
     int variable_id_counter;
 };
 
-// sym_scope_data *sym_init_scope()
-// {
-//     sym_scope_data *scope = calloc(1, sizeof(sym_scope_data));
+static sym_scope_data *sym_init_scope(void)
+{
+    sym_scope_data *scope = calloc(1, sizeof(sym_scope_data));
 
-//     if (scope == NULL)
-//         return NULL;
+    if (scope == NULL)
+        return NULL;
 
-//     scope->table = ht_init();
+    scope->table = ht_init();
 
-//     if (scope->table == NULL)
-//     {
-//         free(scope);
-//         return NULL;
-//     }
+    if (scope->table == NULL)
+    {
+        free(scope);
+        return NULL;
+    }
 
-//     scope->parent = NULL;
+    scope->parent = NULL;
 
-//     return scope;
-// }
+    return scope;
+}
 
 sym_table *sym_init(void)
 {
@@ -141,4 +141,116 @@ void sym_dispose(sym_table *t)
     }
 
     free(t);
+}
+bool sym_enter_scope(sym_table *t)
+{
+    sym_scope_data *scope = sym_init_scope();
+    if (scope == NULL)
+        return false;
+
+    scope->parent = t->innermost_scope;
+    t->innermost_scope = scope;
+
+    return true;
+}
+
+bool sym_exit_scope(sym_table *t)
+{
+    if (t->innermost_scope == NULL)
+        return false;
+
+    ht_dispose(t->innermost_scope->table);
+    sym_scope_data *tmp = t->innermost_scope->parent;
+    free(t->innermost_scope);
+
+    t->innermost_scope = tmp;
+
+    return true;
+}
+
+bool sym_declare_variable(sym_table *t, sym_variable *var)
+{
+    if (t->innermost_scope == NULL)
+        return false;
+
+    bool exists = ht_search(t->innermost_scope->table, var->name);
+
+    if (exists)
+    {
+        // return error 4
+        return false;
+    }
+    else
+    {
+        if (t->variable_count >= MAX_VARIABLE_CAPACITY - 1)
+            return false;
+
+        bool success = ht_insert(t->innermost_scope->table, var->name, var);
+        if (success)
+        {
+            var->id = t->variable_id_counter;
+
+            t->variable_entries[t->variable_count] = var;
+            t->variable_count++;
+            t->variable_id_counter++;
+
+            return true;
+        }
+        return false;
+    }
+}
+
+sym_variable *sym_lookup_variable(sym_table *t, const char *name)
+{
+    if (t->innermost_scope == NULL)
+        return NULL;
+
+    sym_variable *data = NULL;
+    sym_scope_data *ptr = t->innermost_scope;
+
+    while (ptr != NULL)
+    {
+        data = ht_get_data(ptr->table, name);
+        if (data != NULL)
+            return data;
+        ptr = ptr->parent;
+    }
+    // return error 3
+    return NULL;
+}
+
+bool sym_declare_function(sym_table *t, sym_function *func)
+{
+    bool exists = ht_search(t->function_table, func->name);
+
+    if (exists)
+    {
+        // return error 4
+        return false;
+    }
+    else
+    {
+        if (t->function_count >= MAX_FUNCTION_CAPACITY - 1)
+            return false;
+
+        bool success = ht_insert(t->function_table, func->name, func);
+        if (success)
+        {
+            t->function_entries[t->function_count] = func;
+            t->function_count++;
+            return true;
+        }
+        return false;
+    }
+}
+
+sym_function *sym_lookup_function(sym_table *t, const char *name)
+{
+    sym_function *data = ht_get_data(t->function_table, name);
+    if (data == NULL)
+    {
+        // return error 3
+        return NULL;
+    }
+    return data;
 }

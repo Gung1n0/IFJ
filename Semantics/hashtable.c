@@ -58,11 +58,9 @@ void ht_dispose(ht_table *t)
         free(t->arr);
     }
     free(t);
-
-    t = NULL;
 }
 
-int hashing_function(char *string)
+int hashing_function(const char *string)
 {
     // basic hashing function, changes required after the presentation on the 27.10.2026
     int sum = 0;
@@ -79,7 +77,7 @@ bool exceeded_capacity_limit(int capacity, int number_of_items)
     return max_items <= number_of_items;
 }
 
-bool ht_search(ht_table *t, char *k)
+bool ht_search(ht_table *t, const char *k)
 {
     if (t == NULL || k == NULL)
         return false;
@@ -98,7 +96,7 @@ bool ht_search(ht_table *t, char *k)
     return false;
 }
 
-bool ht_insert(ht_table *t, char *k, void *data)
+bool ht_insert(ht_table *t, const char *k, void *data)
 {
     if (t == NULL || k == NULL)
         return false;
@@ -140,7 +138,7 @@ bool ht_insert(ht_table *t, char *k, void *data)
     return false;
 }
 
-void *ht_get_data(ht_table *t, char *k)
+void *ht_get_data(ht_table *t, const char *k)
 {
     if (t == NULL || k == NULL)
         return NULL;
