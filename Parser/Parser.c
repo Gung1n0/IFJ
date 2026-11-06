@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "Enums.h"
-#include "Constants.h"
+#include "ast.h"
 
 typedef struct
 {
     token_type type;
     char *data;
+    int row;
+    int column;
 } token;
 
 typedef struct
@@ -17,13 +18,6 @@ typedef struct
     int size;
     int pos;
 } token_array;
-
-// prints error message and exists with error code
-void print_error(const char *message, int error_code)
-{
-    fprintf(stderr, "%s\n", message);
-    exit(error_code);
-}
 
 // temporary solution for testing without lexer
 token get_token(token_type type, char *data)
@@ -71,9 +65,10 @@ void enlarge_token_array_one(token_array *arr)
     if (arr == NULL)
         return;
 
-    bool failed = realloc(arr, arr->size + 1);
-    if (failed)
-        print_error("realloc failed", INTERNAL_ERROR);
+    bool failed = realloc(arr->token_data, (arr->size + 1) * sizeof(token));
+    if (!failed)
+        print_error("realloc failed", INTERNAL_ERROR, 0, 0);
+    arr->size += 1;
     return;
 }
 
@@ -113,7 +108,7 @@ token *get_token_from_array(token_array *arr, token_type type, char *data)
 
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "Syntax error, expected %s", arr->token_data[arr->pos].data);
-    print_error(error_msg, SYNTAX_ERROR);
+    print_error(error_msg, SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     return NULL; // Not needed but gcc throws warning without this
 }
 
@@ -124,7 +119,7 @@ token *peek_token_array(token_array *arr, int offset)
     {
         return &arr->token_data[offset + arr->pos];
     }
-    print_error("syntax error", SYNTAX_ERROR);
+    print_error("syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     return NULL; // Not needed but gcc throws warning without this
 }
 
@@ -144,13 +139,13 @@ void parse_prologue(token_array *arr)
                 curr = &arr->token_data[arr->pos];
             }
             else
-                print_error("expected prologue", SYNTAX_ERROR);
+                print_error("expected prologue", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
             if (arr->pos == arr->size - 1)
-                print_error("expected prologue", SYNTAX_ERROR);
+                print_error("expected prologue", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
         }
 
         if (curr->data == NULL || strcmp(curr->data, "import") != 0)
-            print_error("expected 'import'", SYNTAX_ERROR);
+            print_error("expected 'import'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
         skip_token(arr);
 
@@ -163,7 +158,7 @@ void parse_prologue(token_array *arr)
         get_token_from_array(arr, token_newline, NULL);
         return;
     }
-    print_error("expected prologue", SYNTAX_ERROR);
+    print_error("expected prologue", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 }
 
 void parse_function_body(token_array *arr, token *curr)
@@ -172,18 +167,21 @@ void parse_function_body(token_array *arr, token *curr)
     curr->type = token_bracket;      // temp just for gcc to not throw warning
 }
 
-bool parse_type(token *curr)
+data_types parse_type(token *curr)
 {
     if (curr->data == NULL)
-        return false;
-    if (strcmp(curr->data, "Int") == 0 ||
-        strcmp(curr->data, "Unit") == 0 ||
-        strcmp(curr->data, "Double") == 0 ||
-        strcmp(curr->data, "String") == 0)
-    {
-        return true;
-    }
-    return false;
+        return type_none;
+
+    if (strcmp(curr->data, "Int") == 0)
+        return type_int;
+    else if (strcmp(curr->data, "Unit") == 0)
+        return type_unit;
+    else if (strcmp(curr->data, "Double") == 0)
+        return type_double;
+    else if (strcmp(curr->data, "String") == 0)
+        return type_string;
+    else
+        return type_none;
 }
 
 bool check_bracket(token *curr)
@@ -198,8 +196,10 @@ bool check_bracket(token *curr)
     return true;
 }
 
-void parse_params(token_array *arr, token *curr)
+void parse_params(token_array *arr, AST_array *ast_arr)
 {
+    AST temp_ast;
+    token *curr = peek_token_array(arr, 0);
 
     while (check_bracket(curr))
     {
@@ -207,36 +207,51 @@ void parse_params(token_array *arr, token *curr)
         {
             if (curr->type == token_identifier)
             {
+                if (ast_arr->size <= 0)
+                {
+                    enlarge_AST_array_one(ast_arr);
+                    ast_arr->data[ast_arr->size - 1] = temp_ast;
+                }
+
+                temp_ast.name = strdup(curr->data);
+                if (temp_ast.name == NULL)
+                    print_error("malloc failed", INTERNAL_ERROR, 0, 0);
+
+                temp_ast.column = curr->column;
+                temp_ast.row = curr->row;
+
                 skip_token(arr);
                 curr = peek_token_array(arr, 0);
                 if (curr->data == NULL)
-                    print_error("Syntax error, expected ':'", SYNTAX_ERROR);
+                    print_error("Syntax error, expected ':'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
                 if (curr->type != token_specialchar || strcmp(curr->data, ":") != 0)
-                    print_error("Syntax error, expected ':'", SYNTAX_ERROR);
+                    print_error("Syntax error, expected ':'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
                 skip_token(arr);
                 curr = peek_token_array(arr, 0);
 
                 if (curr->data == NULL)
-                    print_error("Syntax error, expected keyword", SYNTAX_ERROR);
+                    print_error("Syntax error, expected keyword", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
-                if (!(curr->type == token_keyword && parse_type(curr)))
-                    print_error("Syntax error, expected keyword", SYNTAX_ERROR);
+                if ((curr->type != token_keyword || parse_type(curr) == type_none))
+                    print_error("Syntax error, expected keyword", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
+
+                temp_ast.type = parse_type(curr);
 
                 skip_token(arr);
                 curr = peek_token_array(arr, 0);
 
                 if (curr->data == NULL)
-                    print_error("Syntax error, expected ')'", SYNTAX_ERROR);
+                    print_error("Syntax error, expected ')'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
                 if (strcmp(curr->data, ",") == 0)
                 {
                     if (peek_token_array(arr, 1)->data == NULL)
-                        print_error("Syntax error, expected ')'", SYNTAX_ERROR);
+                        print_error("Syntax error, expected ')'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
                     if (strcmp(peek_token_array(arr, 1)->data, ")") == 0)
-                        print_error("Syntax error, unexpected ','", SYNTAX_ERROR);
+                        print_error("Syntax error, unexpected ','", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
                     skip_token(arr);
                     curr = peek_token_array(arr, 0);
@@ -244,23 +259,24 @@ void parse_params(token_array *arr, token *curr)
                 else
                 {
                     if (check_bracket(curr))
-                        print_error("Syntax error, expected ',' or ')'", SYNTAX_ERROR);
+                        print_error("Syntax error, expected ',' or ')'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
                 }
             }
             else
-                print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+                print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
         }
         else
-            print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+            print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     }
 }
 
 // parses head of a function: (n: Int):Int =
-void parse_function_params(token_array *arr)
+void parse_function_params(token_array *arr, AST_array *ast_arr)
 {
+
     token *curr = peek_token_array(arr, 0);
     if (curr->type != token_identifier || curr->data == NULL)
-        print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     skip_token(arr);
     curr = &arr->token_data[arr->pos];
 
@@ -273,22 +289,23 @@ void parse_function_params(token_array *arr)
     }
     else
     {
-        parse_params(arr, curr);
+        parse_params(arr, ast_arr);
         get_token_from_array(arr, token_bracket, ")");
     }
 
     curr = peek_token_array(arr, 0);
     if (curr->type == token_specialchar && curr->data != NULL && strcmp(curr->data, ":") == 0)
     {
+
         get_token_from_array(arr, token_specialchar, ":");
 
         curr = peek_token_array(arr, 0);
 
         if (curr->data == NULL)
-            print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+            print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
-        if (!(curr->type == token_keyword && parse_type(curr)))
-            print_error("Syntax error, expected identifier", SYNTAX_ERROR);
+        if (!(curr->type == token_keyword && parse_type(curr) == type_none))
+            print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
         skip_token(arr);
     }
@@ -309,20 +326,24 @@ void parse_function_params(token_array *arr)
 // parses def function
 void parse_def(token_array *arr, token *curr)
 {
+    AST_array *ast_arr = NULL;
+    init_AST_array(ast_arr);
+    *ast_arr = construct_AST_array(1);
+
     if (curr->data == NULL)
-        print_error("Syntax error", SYNTAX_ERROR);
+        print_error("Syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
     if (strcmp(curr->data, "def") == 0)
     {
         skip_token(arr);
-        parse_function_params(arr);
+        parse_function_params(arr, ast_arr);
     }
     else
-        print_error("Syntax error", SYNTAX_ERROR);
+        print_error("Syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 }
 
 // parses @main def function
-void parse_main(token_array *arr, token *curr)
+void parse_main(token_array *arr, token *curr, AST_array *ast_arr)
 {
     if (strcmp(curr->data, "@") == 0)
     {
@@ -344,20 +365,20 @@ void parse_main(token_array *arr, token *curr)
                 if (curr->type == token_keyword && curr->data != NULL)
                     parse_def(arr, curr);
                 else
-                    print_error("Syntax error", SYNTAX_ERROR);
+                    print_error("Syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
             }
             else
-                print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+                print_error("Syntax error, expected 'main'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
         }
         else
-            print_error("Syntax error, expected 'main'", SYNTAX_ERROR);
+            print_error("Syntax error, expected 'main'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     }
     else
-        print_error("Syntax error, expected '@'", SYNTAX_ERROR);
+        print_error("Syntax error, expected '@'", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 }
 
 //
-void parse_head_funtion(token_array *arr)
+void parse_head_funtion(token_array *arr, AST_array *ast_arr)
 {
     token *curr = peek_token_array(arr, 0);
     while (curr->type != token_eof)
@@ -368,10 +389,10 @@ void parse_head_funtion(token_array *arr)
         }
         else if (curr->type == token_specialchar && curr->data != NULL)
         {
-            parse_main(arr, curr);
+            parse_main(arr, curr, ast_arr);
         }
         else
-            print_error("Syntax error", SYNTAX_ERROR);
+            print_error("Syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
         curr = &arr->token_data[arr->pos];
     }

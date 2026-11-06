@@ -1,3 +1,6 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
 const int LEXICAL_ERROR = 1;
 const int SYNTAX_ERROR = 2;
 const int UNDEFINED = 3;
@@ -5,5 +8,7 @@ const int UNAUTHORIZED = 4;
 const int INVALID_ARGUMENT = 5;
 const int INVALID_TYPE = 6;
 const int IMMUTABLE_WRITE = 7;
-const int SEMATIC_ERROR = 10;
+const int SEMANTIC_ERROR = 10;
 const int INTERNAL_ERROR = 99;
+
+#endif

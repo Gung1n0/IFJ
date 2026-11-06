@@ -22,8 +22,10 @@ typedef enum
 } token_relation_operator;*/
 //i dont think its needed yet im gonna keep it, justin case 
 
-typedef enum
-{
+#ifndef ENUMS_H
+#define ENUMS_H
+
+typedef enum {
     token_identifier,
     token_keyword,
     token_arithmetic_operator,
@@ -39,3 +41,13 @@ typedef enum
     token_newline,
     token_eof
 } token_type;
+
+typedef enum {
+    type_int,
+    type_double,
+    type_string,
+    type_unit,
+    type_none
+} data_types;
+
+#endif
