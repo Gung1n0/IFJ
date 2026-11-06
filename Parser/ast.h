@@ -11,7 +11,7 @@
 typedef struct 
 {
     char *name;
-    token_type type;
+    data_types type;
     int row;
     int column;
 }AST;

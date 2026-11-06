@@ -19,6 +19,15 @@ typedef struct
     int pos;
 } token_array;
 
+//duplicate string
+char *strduplicate(const char *s) {
+    char *p = malloc(strlen(s) + 1);
+    if (p != NULL) {
+        strcpy(p, s);
+    }
+    return p;
+}
+
 // temporary solution for testing without lexer
 token get_token(token_type type, char *data)
 {
@@ -213,7 +222,7 @@ void parse_params(token_array *arr, AST_array *ast_arr)
                     ast_arr->data[ast_arr->size - 1] = temp_ast;
                 }
 
-                temp_ast.name = strdup(curr->data);
+                temp_ast.name = strduplicate(curr->data);
                 if (temp_ast.name == NULL)
                     print_error("malloc failed", INTERNAL_ERROR, 0, 0);
 
