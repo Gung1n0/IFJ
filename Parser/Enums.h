@@ -1,27 +1,3 @@
-/*typedef enum
-{
-    opening,
-    closing
-} token_bracket_variant;
-
-typedef enum
-{
-    plus,
-    minus,
-    divide,
-    multiply
-} token_arithmetic_operator;
-
-typedef enum
-{
-    greater,       //>
-    lesser,        // <
-    greater_equal, // >=
-    lesser_equal,  // <=
-    equal          // =
-} token_relation_operator;*/
-//i dont think its needed yet im gonna keep it, justin case 
-
 #ifndef ENUMS_H
 #define ENUMS_H
 
@@ -50,4 +26,37 @@ typedef enum {
     type_none
 } data_types;
 
+typedef enum{
+    node_program,
+    node_function,
+    node_block,
+    node_val_var,
+    node_asign,
+    node_expression,
+    node_return,
+    node_if,
+    node_while,
+    node_lit,
+    node_id,
+    node_unar,
+    node_binar,
+    node_call
+} node_type;
+
+typedef enum
+{
+    add,
+    subtract,
+    multiply,
+    devide,
+    equal,
+    negation,
+    power,
+    lesser,
+    lesser_or_equal,
+    grater,
+    greater_or_equal,
+    not_equal
+
+}operator;
 #endif

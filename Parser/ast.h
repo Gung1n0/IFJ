@@ -5,16 +5,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "Enums.h"
 #include "Constants.h"
+#include "token.h"
 
-typedef struct 
+typedef struct
 {
     char *name;
     data_types type;
     int row;
     int column;
-}AST;
+} AST;
 
 typedef struct
 {
@@ -25,15 +25,104 @@ typedef struct
 typedef struct
 {
     char *name;
+    data_types types;
     int row;
     int column;
-    AST_array *ast_arr;
-    data_types return_type;
-    bool explicit;
-    bool is_main;
-    char* body;
-}node;
+} param;
 
+typedef struct node node;
+
+struct node
+{
+    node_type type;
+    int row;
+    int column;
+    union
+    {
+        struct
+        {
+            node **items;
+            int size;
+            int cap;
+        } program;
+        struct
+        {
+            char *name;
+            data_types return_type;
+            bool explicit;
+            bool is_main;
+            param *params;
+            int param_count;
+            node *body;
+        } function;
+        struct
+        {
+            node **items;
+            int size;
+            int cap;
+        } block;
+        struct
+        {
+            char *name;
+            bool changable;
+            data_types type;
+            node *init;
+        } val_var;
+        struct
+        {
+            char *name;
+            node *init;
+        } asign;
+        struct
+        {
+            node *expression;
+        } expression;
+        struct
+        {
+            node *value;
+        } ret;
+        struct
+        {
+            node *condition;
+            node *then;
+            node *else_n;
+        } if_n;
+        struct
+        {
+            node *condition;
+            node *body;
+        } while_n;
+        struct
+        {
+            data_types type;
+            int i;
+            double d;
+            char *s;
+        } lit;
+        struct
+        {
+            char *name;
+        } ident;
+        struct
+        {
+            operator op;
+            node *operand;
+        } unar;
+        struct
+        {
+            operator op;
+            node *left;
+            node *right;
+        } binar;
+        struct
+        {
+            char *name;
+            node **items;
+            int size;
+            int cap;
+        } call;
+    } idk;
+};
 // prints error message and exists with error code
 void print_error(const char *message, int error_code, int row, int column)
 {
@@ -60,6 +149,9 @@ AST_array construct_AST_array(int size)
 // destroy AST array
 void destruct_AST_array(AST_array *t)
 {
+    for (int i = 0; i < t->size; i++)
+        free(t->data[i].name);
+
     free(t->data);
     t->data = NULL;
 }
@@ -77,14 +169,12 @@ void enlarge_AST_array_one(AST_array *arr)
     if (arr == NULL)
         return;
 
-    bool failed = realloc(arr->data, (arr->size + 1)*sizeof(AST));
-    if (!failed)
-        print_error("realloc failed", INTERNAL_ERROR, 0,0);
-    
-    arr->size += 1;
+    AST *tmp = realloc(arr->data, (arr->size + 1) * sizeof(AST));
+    if (tmp == NULL)
+        print_error("realloc failed", INTERNAL_ERROR, 0, 0);
+    arr->data = tmp;
+    arr->size++;
     return;
 }
-
-
 
 #endif
