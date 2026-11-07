@@ -327,7 +327,7 @@ node *parse_expr(token_array *arr)
 {
     token *curr = peek_token_array(arr, 0);
     if (curr == NULL)
-        print_error("Syntax error, expected expression", SYNTAX_ERROR, 0, 0);
+        print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
 
     if (curr->type == token_identifier)
     {
@@ -349,6 +349,24 @@ node *parse_expr(token_array *arr)
         print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
     }
     return NULL;
+}
+
+node *parse_return(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+
+    node *ret = create_node(node_return, curr->row, curr->column);
+
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+
+    if (curr->type == token_newline || curr->type == token_dedent || curr->type == token_semicolon)
+    {
+        ret->idk.ret.value = NULL;
+        return ret;
+    }
+    ret->idk.ret.value = parse_expr(arr);
+    return ret;
 }
 
 node *parse_val_var(token_array *arr, token *curr)
@@ -429,6 +447,18 @@ node *parse_function_body(token_array *arr)
                 bl->idk.block.size++;
 
                 bl->idk.block.items[bl->idk.block.size - 1] = parse_val_var(arr, curr);
+                curr = peek_token_array(arr, 0);
+            }
+            else if (strcmp(curr->data, "return") == 0)
+            {
+                node **temp = realloc(bl->idk.block.items, sizeof(node *) * (bl->idk.block.size + 1));
+                if (temp == NULL)
+                    print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+                bl->idk.block.items = temp;
+                bl->idk.block.size++;
+
+                bl->idk.block.items[bl->idk.block.size - 1] = parse_return(arr);
+
                 curr = peek_token_array(arr, 0);
             }
             else
