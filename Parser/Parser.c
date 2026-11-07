@@ -280,18 +280,140 @@ data_types parse_type(token *curr)
         return type_none;
 }
 
+operator parse_operator(token *curr)
+{
+    if (strcmp(curr->data, "+") == 0 || strcmp(curr->data, "add") == 0)
+        return add;
+    else if (strcmp(curr->data, "-") == 0 || strcmp(curr->data, "subtract") == 0)
+        return subtract;
+    else if (strcmp(curr->data, "*") == 0 || strcmp(curr->data, "multiply") == 0)
+        return multiply;
+    else if (strcmp(curr->data, "/") == 0 || strcmp(curr->data, "devide") == 0 || strcmp(curr->data, "divide") == 0)
+        return devide;
+    else if (strcmp(curr->data, "==") == 0 || strcmp(curr->data, "equal") == 0)
+        return equal;
+    else if (strcmp(curr->data, "negation") == 0 || strcmp(curr->data, "!") == 0)
+        return negation;
+    else if (strcmp(curr->data, "^") == 0 || strcmp(curr->data, "power") == 0)
+        return power;
+    else if (strcmp(curr->data, "<") == 0 || strcmp(curr->data, "lesser") == 0)
+        return lesser;
+    else if (strcmp(curr->data, "<=") == 0 || strcmp(curr->data, "lesser_or_equal") == 0)
+        return lesser_or_equal;
+    else if (strcmp(curr->data, ">") == 0 || strcmp(curr->data, "grater") == 0 || strcmp(curr->data, "greater") == 0)
+        return grater;
+    else if (strcmp(curr->data, ">=") == 0 || strcmp(curr->data, "greater_or_equal") == 0)
+        return greater_or_equal;
+    else if (strcmp(curr->data, "!=") == 0 || strcmp(curr->data, "not_equal") == 0)
+        return not_equal;
+
+    // Predvolená návratová hodnota alebo ošetrenie chyby
+    return none;
+}
+
+node *parse_unar(token *curr, token_array *arr)
+{
+    // todo
+    return NULL;
+}
+
+node *parse_binar(token *curr, token_array *arr)
+{
+    // todo
+    return NULL;
+}
+
+node *parse_expr(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    if (curr == NULL)
+        print_error("Syntax error, expected expression", SYNTAX_ERROR, 0, 0);
+
+    if (curr->type == token_identifier)
+    {
+        node *id = create_node(node_id, curr->row, curr->column);
+        id->idk.ident.name = strduplicate(curr->data);
+        skip_token(arr);
+        return id;
+    }
+    else if (curr->type == token_int)
+    {
+        node *lit = create_node(node_lit, curr->row, curr->column);
+        lit->idk.lit.type = type_int;
+        lit->idk.lit.i = curr->data ? atoi(curr->data) : 0;
+        skip_token(arr);
+        return lit;
+    }
+    else
+    {
+        print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
+    }
+    return NULL;
+}
+
+node *parse_val_var(token_array *arr, token *curr)
+{
+    node *vl = create_node(node_val_var, curr->row, curr->column);
+    if (strcmp(curr->data, "val") != 0)
+        vl->idk.val_var.changable = true;
+    else
+        vl->idk.val_var.changable = false;
+
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+    if (curr->data == NULL || curr->type != token_identifier)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
+
+    vl->idk.val_var.name = strduplicate(curr->data);
+
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+
+    if (curr->type == token_specialchar)
+    {
+        get_token_from_array(arr, token_specialchar, ":");
+        curr = &arr->token_data[arr->pos];
+
+        if (curr->type != token_keyword || curr->data == NULL)
+            print_error("Syntax error, expected keyword", SYNTAX_ERROR, curr->row, curr->column);
+
+        vl->idk.val_var.type = parse_type(curr);
+
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+    }
+    else
+        vl->idk.val_var.type = type_none;
+
+    if (curr->data == NULL && curr->type != token_dedent)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
+
+    if (curr->type == token_relation_operator && strcmp(curr->data, "=") == 0)
+    {
+        skip_token(arr);
+        vl->idk.val_var.init = parse_expr(arr);
+        return vl;
+    }
+    else
+        print_error("Syntax error, expected '='", SYNTAX_ERROR, curr->row, curr->column);
+
+    return NULL;
+}
+
 node *parse_function_body(token_array *arr)
 {
     node *bl = create_node(node_block, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
     token *curr = peek_token_array(arr, 0);
 
-    if (curr->data != NULL || curr->type != token_indent)
+    if (curr->type != token_indent)
         print_error("Syntax error, expected indent", SYNTAX_ERROR, curr->row, curr->column);
+
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
 
     while (curr->type != token_dedent)
     {
-        data_types type = parse_type(curr);
-        switch (type)
+        switch (curr->type)
         {
         case token_keyword:
         {
@@ -300,105 +422,40 @@ node *parse_function_body(token_array *arr)
             // val or var
             if (strcmp(curr->data, "val") == 0 || strcmp(curr->data, "var") == 0)
             {
-                node *vl = create_node(node_val_var, curr->row, curr->column);
-                if (strcmp(curr->data, "val") == 0)
-                    vl->idk.val_var.changable = true;
-                else
-                    vl->idk.val_var.changable = false;
+                node **temp = realloc(bl->idk.block.items, sizeof(node *) * (bl->idk.block.size + 1));
+                if (temp == NULL)
+                    print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+                bl->idk.block.items = temp;
+                bl->idk.block.size++;
 
-                skip_token(arr);
+                bl->idk.block.items[bl->idk.block.size - 1] = parse_val_var(arr, curr);
                 curr = peek_token_array(arr, 0);
-                if (curr->data == NULL || parse_type(curr) != token_identifier)
-                    print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
-
-                vl->idk.val_var.name = curr->data;
-                skip_token(arr);
-                curr = peek_token_array(arr, 0);
-
-                if (parse_type(curr) == token_newline)
-                {
-                    vl->idk.val_var.init = NULL;
-                    vl->idk.val_var.type = type_none;
-                    skip_token(arr);
-                    break;
-                }
-
-                if (curr->data == NULL)
-                    print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
-                if (parse_type(curr) == token_relation_operator && strcmp(curr->data, "=") == 0)
-                {
-                    switch (parse_type(curr))
-                    { // if var = unar a
-                    case token_arithmetic_operator:
-                    {
-                        if (curr->data == NULL)
-                            print_error("Syntax error, expected '-'", SYNTAX_ERROR, curr->row, curr->column);
-                        node *un = create_node(node_unar, curr->row, curr->column);
-                        un->idk.unar.op = subtract;
-
-                        skip_token(arr);
-                        curr = peek_token_array(arr, 0);
-
-                        if (parse_type(curr) != token_identifier || curr->data == NULL)
-                            print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
-
-                        node *id = create_node(node_id, curr->row, curr->column);
-                        id->idk.ident.name = strduplicate(curr->data);
-                        un->idk.unar.operand = id;
-                        vl->idk.val_var.init = un;
-
-                        node *temp = realloc(bl->idk.block.items, sizeof(node) * bl->idk.block.size + 1);
-                        if (temp == NULL)
-                            print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-                        bl->idk.block.items = temp;
-                        bl->idk.block.size++;
-
-                        bl->idk.block.items[bl->idk.block.size - 1] = vl;
-
-                        skip_token(arr);
-                        curr = peek_token_array(arr, 0);
-                        break;
-                    } // if var = a
-                    case token_identifier:
-                    {
-                        if (parse_type(curr) != token_identifier || curr->data == NULL)
-                            print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
-                        node *id = create_node(node_id, curr->row, curr->column);
-
-                        id->idk.ident.name = strduplicate(curr->data);
-
-                        skip_token(arr);
-                        curr = peek_token_array(arr, 0);
-
-                        // if var = a
-                        if (parse_type(curr) == token_newline && curr->data == NULL)
-                        {
-                            node *temp = realloc(bl->idk.block.items, sizeof(node) * bl->idk.block.size + 1);
-                            if (temp == NULL)
-                                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-                            bl->idk.block.items = temp;
-                            bl->idk.block.size++;
-
-                            bl->idk.block.items[bl->idk.block.size - 1] = id;
-
-                            skip_token(arr);
-                            curr = peek_token_array(arr, 0);
-                            break;
-                        }
-                        while (parse_type(curr) != token_newline)
-                        {
-                            //todo if infinite binars
-                        }
-                            break;
-                    }
-                    default:
-                        break;
-                    }
-                }
             }
+            else
+            {
+                print_error("Syntax error, unexpected keyword", SYNTAX_ERROR, curr->row, curr->column);
+            }
+            break;
+        }
+        case token_eof:
+        {
+            print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
+            break;
+        }
+        default:
+        {
+            print_error("Syntax error", SYNTAX_ERROR, curr->row, curr->column);
+            break;
         }
         }
+
+        if (curr->type == token_dedent)
+            break;
+
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
     }
+    skip_token(arr);
     return bl;
 }
 

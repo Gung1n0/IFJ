@@ -56,7 +56,7 @@ typedef enum
     lesser_or_equal,
     grater,
     greater_or_equal,
-    not_equal
-
+    not_equal,
+    none
 }operator;
 #endif
