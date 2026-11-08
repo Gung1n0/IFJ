@@ -1,7 +1,7 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include "enums.h"
+#include "../Common/enums.h"
 #include <stdbool.h>
 
 typedef struct sym_table sym_table;
