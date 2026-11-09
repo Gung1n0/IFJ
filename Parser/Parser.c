@@ -18,11 +18,12 @@ char *strduplicate(const char *s)
 bool is_keyword(token *t)
 {
 
-    return t->type >= TOKEN_KW_DEF && t->type <= TOKEN_KW_STRING;
+    return t->type >= TOKEN_KW_DEF && t->type <= TOKEN_STRING_LITERAL;
 }
 
 const char *token_name(TokenType type)
 {
+    // AI GENERATED: prompt: generate the rest of the cases acording to enum (provided first 2 lines of case and token_type enum)
     switch (type)
     {
     case TOKEN_IDENTIFIER:
@@ -43,20 +44,6 @@ const char *token_name(TokenType type)
         return "'if'";
     case TOKEN_KW_INT:
         return "'Int'";
-    case TOKEN_KW_VAL:
-        return "'val'";
-    case TOKEN_KW_VAR:
-        return "'var'";
-    case TOKEN_KW_RETURN:
-        return "'return'";
-    case TOKEN_KW_IMPORT:
-        return "'import'";
-    case TOKEN_KW_UNIT:
-        return "'Unit'";
-    case TOKEN_KW_DOUBLE:
-        return "'Double'";
-    case TOKEN_KW_STRING:
-        return "'String'";
     case TOKEN_OP_PLUS:
         return "'+'";
     case TOKEN_OP_MINUS:
@@ -101,6 +88,22 @@ const char *token_name(TokenType type)
         return "indent";
     case TOKEN_DED:
         return "dedent";
+    case TOKEN_KW_IMPORT:
+        return "'import'";
+    case TOKEN_KW_MAIN:
+        return "'main'";
+    case TOKEN_KW_UNIT:
+        return "'Unit'";
+    case TOKEN_KW_VAL:
+        return "'val'";
+    case TOKEN_KW_VAR:
+        return "'var'";
+    case TOKEN_KW_RETURN:
+        return "'return'";
+    case TOKEN_KW_WHILE:
+        return "'while'";
+    case TOKEN_KW_THEN:
+        return "'then'";
     }
     return "token";
 }
@@ -170,10 +173,12 @@ void parse_prologue(token_array *arr)
         token *curr = peek_token_array(arr, 0);
         // go trough tokens until i get prologue, or syntax error
 
-        while (curr->type != TOKEN_KW_IMPORT)
+        while (curr->type != TOKEN_IDENTIFIER)
         {
-            if (arr->pos == arr->size - 1)
-                print_error("expected prologue", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
+            if (curr->data)
+
+                if (arr->pos == arr->size - 1)
+                    print_error("expected prologue", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
             if (curr->type != TOKEN_EOL)
             {
@@ -314,9 +319,9 @@ data_types parse_type(token *curr)
         return type_int;
     case TOKEN_KW_UNIT:
         return type_unit;
-    case TOKEN_KW_DOUBLE:
+    case TOKEN_DOUBLE_LITERAL:
         return type_double;
-    case TOKEN_KW_STRING:
+    case TOKEN_STRING_LITERAL:
         return type_string;
     default:
         return type_none;
@@ -358,7 +363,7 @@ node *parse_unar(token *curr, token_array *arr)
     return NULL;
 }
 
-node *parse_binar(token *curr, token_array *arr)
+node *parse_binar(token_array *arr)
 {
     // todo
     return NULL;
@@ -555,7 +560,7 @@ node *parse_asign(token_array *arr)
     as->as.asign.name = strduplicate(curr->data);
     skip_token(arr);
     get_token_from_array(arr, TOKEN_OP_ASSIGN, NULL);
-    curr = peek_token_array(arr,0);
+    curr = peek_token_array(arr, 0);
 
     if (curr->type == TOKEN_IDENTIFIER && peek_token_array(arr, 1)->type == TOKEN_LPAR)
         as->as.asign.init = parse_call(arr);
@@ -606,10 +611,11 @@ node *parse_function_body(token_array *arr)
         }
         else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
         {
-            nn = create_node(node_expression,curr->row, curr->column);
+            nn = create_node(node_expression, curr->row, curr->column);
             nn->as.expression.expression = parse_expr(arr);
         }
-        else print_error("Syntax error, expected statement", SYNTAX_ERROR,curr->row, curr->column);
+        else
+            print_error("Syntax error, expected statement", SYNTAX_ERROR, curr->row, curr->column);
 
         node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
         if (temp == NULL)
@@ -663,7 +669,7 @@ node *parse_function_body(token_array *arr)
         }
         else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
         {
-            nn = create_node(node_expression,curr->row, curr->column);
+            nn = create_node(node_expression, curr->row, curr->column);
             nn->as.expression.expression = parse_expr(arr);
         }
         else
@@ -715,6 +721,66 @@ node *parse_function_body(token_array *arr)
     }
     skip_token(arr);
     return bl;
+}
+
+node *parse_cond(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    node *cond = create_node(node_expression, curr->row, curr->column);
+
+    cond->as.while_n.condition = parse_binar(arr);
+    skip_token(arr);
+    return cond;
+}
+
+node *parse_while(token_array *arr)
+{
+    get_token_from_array(arr, TOKEN_KW_WHILE, NULL);
+
+    token *curr = peek_token_array(arr, 0);
+    node *wh = create_node(node_while, curr->row, curr->column);
+    
+    wh->as.while_n.condition = parse_binar(arr); 
+
+    get_token_from_array(arr, TOKEN_KW_DO, NULL);
+
+    get_token_from_array(arr, TOKEN_EOL, NULL);
+    get_token_from_array(arr, TOKEN_IND, NULL);
+
+    wh->as.while_n.body = parse_function_body(arr);
+
+    wh->as.while_n.ret = parse_expr(arr);
+
+    return wh;
+}
+// dont know if after else has to be EOL, ill say yes
+node *parse_if(token_array *arr)
+{
+    get_token_from_array(arr, TOKEN_KW_IF, NULL);
+
+    node *if_else = create_node(node_if, peek_token_array(arr, 0)->row, peek_token_array(arr, 0)->column);
+    
+    if_else->as.if_n.condition = parse_binar(arr);
+
+    get_token_from_array(arr, TOKEN_KW_THEN, NULL);
+
+    get_token_from_array(arr, TOKEN_EOL, NULL);
+
+    get_token_from_array(arr, TOKEN_IND, NULL);
+
+    if_else->as.if_n.then = parse_function_body(arr);
+
+    get_token_from_array(arr, TOKEN_EOL, NULL);
+
+    get_token_from_array(arr, TOKEN_KW_ELSE, NULL);
+
+    get_token_from_array(arr, TOKEN_EOL, NULL);
+
+    get_token_from_array(arr, TOKEN_IND, NULL);
+
+    if_else->as.if_n.else_n = parse_function_body(arr);
+
+    return if_else;
 }
 
 bool check_bracket(token *curr)

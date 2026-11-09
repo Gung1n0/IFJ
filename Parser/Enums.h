@@ -11,13 +11,14 @@ typedef enum {
     TOKEN_KW_ELSE,
     TOKEN_KW_IF,
     TOKEN_KW_INT,
-    TOKEN_KW_VAL,         // NEW
-    TOKEN_KW_VAR,         // NEW
-    TOKEN_KW_RETURN,      // NEW
-    TOKEN_KW_IMPORT,      // NEW
-    TOKEN_KW_UNIT,        // NEW
-    TOKEN_KW_DOUBLE,      // NEW
-    TOKEN_KW_STRING,      // NEW
+    TOKEN_KW_MAIN, //new 
+    TOKEN_KW_IMPORT,
+    TOKEN_KW_UNIT,
+    TOKEN_KW_VAL,
+    TOKEN_KW_VAR,
+    TOKEN_KW_RETURN,
+    TOKEN_KW_WHILE,
+    TOKEN_KW_THEN,
  
     TOKEN_OP_PLUS,        // +
     TOKEN_OP_MINUS,       // -
@@ -66,7 +67,7 @@ typedef enum{
     node_id,
     node_unar,
     node_binar,
-    node_call
+    node_call,
 } node_type;
 
 typedef enum
