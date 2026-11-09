@@ -6,7 +6,6 @@ typedef enum {
     TOKEN_DOUBLE_LITERAL, // napr. 3.14
     TOKEN_STRING_LITERAL, // napr. "ahoj"
  
-    // Keywords: must stay contiguous, is_keyword() checks the range
     TOKEN_KW_DEF,
     TOKEN_KW_DO,
     TOKEN_KW_ELSE,

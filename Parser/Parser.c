@@ -105,58 +105,11 @@ const char *token_name(TokenType type)
     return "token";
 }
 
-// temporary solution for testing without lexer
-token get_token(TokenType type, char *data)
-{
-    token Token;
-    Token.type = type;
-    Token.data = data;
-    return Token;
-}
-
-// initialize token array
-token_array construct_token_array(int size)
-{
-    token_array t;
-    t.token_data = malloc(size * sizeof(token));
-    if (t.token_data != NULL)
-    {
-        t.size = size;
-    }
-    else
-    {
-        t.size = 0;
-    }
-    return t;
-}
-
 // destroy token array
 void destruct_token_array(token_array *t)
 {
     free(t->token_data);
     t->token_data = NULL;
-}
-
-// initialize token array
-void init_token_array(token_array *arr)
-{
-    arr->size = 0;
-    arr->token_data = NULL;
-    arr->pos = 0;
-}
-
-// enlarge array of tokens by one
-void enlarge_token_array_one(token_array *arr)
-{
-    if (arr == NULL)
-        return;
-
-    token *tmp = realloc(arr->token_data, (arr->size + 1) * sizeof(token));
-    if (tmp == NULL)
-        print_error("realloc failed", INTERNAL_ERROR, 0, 0);
-    arr->token_data = tmp;
-    arr->size++;
-    return;
 }
 
 // destroy token
@@ -270,83 +223,83 @@ void free_node(node *n)
     switch (n->type)
     {
     case node_program:
-        if (n->idk.program.items)
+        if (n->as.program.items)
         {
-            for (int i = 0; i < n->idk.program.size; i++)
+            for (int i = 0; i < n->as.program.size; i++)
             {
-                free_node(n->idk.program.items[i]);
+                free_node(n->as.program.items[i]);
             }
-            free(n->idk.program.items);
+            free(n->as.program.items);
         }
         break;
     case node_function:
-        free(n->idk.function.name);
-        free_node(n->idk.function.body);
-        for (int i = 0; i < n->idk.function.param_count; i++)
-            free(n->idk.function.params[i].name);
-        free(n->idk.function.params);
+        free(n->as.function.name);
+        free_node(n->as.function.body);
+        for (int i = 0; i < n->as.function.param_count; i++)
+            free(n->as.function.params[i].name);
+        free(n->as.function.params);
         break;
     case node_block:
-        for (int i = 0; i < n->idk.block.size; i++)
+        for (int i = 0; i < n->as.block.size; i++)
         {
-            free_node(n->idk.block.items[i]);
+            free_node(n->as.block.items[i]);
         }
-        free(n->idk.block.items);
+        free(n->as.block.items);
         break;
     case node_val_var:
-        free(n->idk.val_var.name);
-        free_node(n->idk.val_var.init);
+        free(n->as.val_var.name);
+        free_node(n->as.val_var.init);
         break;
     case node_asign:
-        free(n->idk.asign.name);
-        free_node(n->idk.asign.init);
+        free(n->as.asign.name);
+        free_node(n->as.asign.init);
         break;
 
     case node_expression:
-        free_node(n->idk.expression.expression);
+        free_node(n->as.expression.expression);
         break;
 
     case node_return:
-        free_node(n->idk.ret.value);
+        free_node(n->as.ret.value);
         break;
 
     case node_if:
-        free_node(n->idk.if_n.condition);
-        free_node(n->idk.if_n.then);
-        free_node(n->idk.if_n.else_n);
+        free_node(n->as.if_n.condition);
+        free_node(n->as.if_n.then);
+        free_node(n->as.if_n.else_n);
         break;
 
     case node_while:
-        free_node(n->idk.while_n.condition);
-        free_node(n->idk.while_n.body);
+        free_node(n->as.while_n.condition);
+        free_node(n->as.while_n.body);
         break;
 
     case node_lit:
-        if (n->idk.lit.type == type_string)
-            free(n->idk.lit.s);
+        if (n->as.lit.type == type_string)
+            free(n->as.lit.s);
         break;
     case node_id:
-        free(n->idk.ident.name);
+        free(n->as.ident.name);
         break;
 
     case node_unar:
-        free_node(n->idk.unar.operand);
+        free_node(n->as.unar.operand);
         break;
 
     case node_binar:
-        free_node(n->idk.binar.left);
-        free_node(n->idk.binar.right);
+        free_node(n->as.binar.left);
+        free_node(n->as.binar.right);
         break;
 
     case node_call:
-        free(n->idk.call.name);
-        if (n->idk.call.items)
+        free(n->as.call.name);
+        if (n->as.call.items)
         {
-            for (int i = 0; i < n->idk.call.size; i++)
+            for (int i = 0; i < n->as.call.size; i++)
             {
-                free_node(n->idk.call.items[i]);
+                free_node(n->as.call.items[i]);
             }
-            free(n->idk.call.items);
+            free(n->as.call.items);
         }
         break;
     }
@@ -414,27 +367,107 @@ node *parse_binar(token *curr, token_array *arr)
 node *parse_expr(token_array *arr)
 {
     token *curr = peek_token_array(arr, 0);
+    if (curr->data == NULL)
+        print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
 
     if (curr->type == TOKEN_IDENTIFIER)
     {
         node *id = create_node(node_id, curr->row, curr->column);
-        id->idk.ident.name = strduplicate(curr->data);
+        id->as.ident.name = strduplicate(curr->data);
         skip_token(arr);
         return id;
     }
     else if (curr->type == TOKEN_INT_LITERAL)
     {
         node *lit = create_node(node_lit, curr->row, curr->column);
-        lit->idk.lit.type = type_int;
-        lit->idk.lit.i = curr->data ? atoi(curr->data) : 0;
+        lit->as.lit.type = type_int;
+        lit->as.lit.i = curr->data ? atoi(curr->data) : 0;
+        skip_token(arr);
+        return lit;
+    }
+    else if (TOKEN_DOUBLE_LITERAL == curr->type)
+    {
+        node *lit = create_node(node_lit, curr->row, curr->column);
+        lit->as.lit.d = atof(curr->data);
+        lit->as.lit.type = type_double;
+        skip_token(arr);
+        return lit;
+    }
+    else if (TOKEN_STRING_LITERAL == curr->type)
+    {
+        node *lit = create_node(node_lit, curr->row, curr->column);
+        lit->as.lit.s = strduplicate(curr->data);
+        lit->as.lit.type = type_string;
         skip_token(arr);
         return lit;
     }
     else
-    {
         print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
-    }
     return NULL;
+}
+
+node *parse_call(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    node *call = create_node(node_call, curr->row, curr->column);
+
+    if (curr->data == NULL)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
+
+    call->as.call.name = strduplicate(curr->data);
+    skip_token(arr);
+    get_token_from_array(arr, TOKEN_LPAR, NULL);
+
+    curr = peek_token_array(arr, 0);
+    if (curr->type == TOKEN_COMMA)
+        print_error("Syntax error, unexpected ','", SYNTAX_ERROR, curr->row, curr->column);
+
+    call->as.call.size = 0;
+
+    int last_comma = 0;
+    while (TOKEN_RPAR != curr->type)
+    {
+        if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+        {
+            if (curr->data == NULL)
+                print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
+
+            node **temp = realloc(call->as.call.items, sizeof(node *) * (call->as.call.size + 1));
+            if (temp == NULL)
+                print_error("Internal error, Malloc failed", INTERNAL_ERROR, 0, 0);
+            node *argument = parse_expr(arr);
+            call->as.call.items = temp;
+            call->as.call.size++;
+            call->as.call.items[call->as.call.size - 1] = argument;
+            curr = peek_token_array(arr, 0);
+            if (curr->type != TOKEN_COMMA && curr->type != TOKEN_RPAR)
+                print_error("Syntax error, expected identifier or literal", SYNTAX_ERROR, curr->row, curr->column);
+        }
+        else if (curr->type == TOKEN_COMMA)
+        {
+            if (peek_token_array(arr, 1)->type == TOKEN_RPAR)
+                last_comma = arr->pos;
+
+            if (peek_token_array(arr, 1)->type == TOKEN_COMMA)
+                print_error("Syntax error, unexpected ','", SYNTAX_ERROR, peek_token_array(arr, 1)->row, peek_token_array(arr, 1)->column);
+
+            skip_token(arr);
+            curr = peek_token_array(arr, 0);
+            continue;
+        }
+        else
+        {
+            print_error("Syntax error, expected identifier or liberal", SYNTAX_ERROR, curr->row, curr->column); // big hehe
+        }
+    }
+    get_token_from_array(arr, TOKEN_RPAR, NULL);
+
+    if (last_comma != 0)
+    {
+        if (arr->token_data[last_comma].row == arr->token_data[arr->pos - 1].row)
+            print_error("Syntax error, unexpected ','", SYNTAX_ERROR, arr->token_data[arr->pos - 1].row, arr->token_data[arr->pos - 1].column);
+    }
+    return call;
 }
 
 node *parse_return(token_array *arr)
@@ -448,10 +481,15 @@ node *parse_return(token_array *arr)
 
     if (curr->type == TOKEN_EOL || curr->type == TOKEN_DED || curr->type == TOKEN_SEMICOLON)
     {
-        ret->idk.ret.value = NULL;
+        ret->as.ret.value = NULL;
         return ret;
     }
-    ret->idk.ret.value = parse_expr(arr);
+    else if (curr->type == TOKEN_IDENTIFIER && peek_token_array(arr, 1)->type == TOKEN_LPAR)
+    {
+        ret->as.ret.value = parse_call(arr);
+    }
+    else
+        ret->as.ret.value = parse_expr(arr);
     return ret;
 }
 
@@ -459,16 +497,16 @@ node *parse_val_var(token_array *arr, token *curr)
 {
     node *vl = create_node(node_val_var, curr->row, curr->column);
     if (curr->type != TOKEN_KW_VAL)
-        vl->idk.val_var.changable = true;
+        vl->as.val_var.changable = true;
     else
-        vl->idk.val_var.changable = false;
+        vl->as.val_var.changable = false;
 
     skip_token(arr);
     curr = peek_token_array(arr, 0);
     if (curr->data == NULL || curr->type != TOKEN_IDENTIFIER)
         print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
 
-    vl->idk.val_var.name = strduplicate(curr->data);
+    vl->as.val_var.name = strduplicate(curr->data);
 
     skip_token(arr);
     curr = peek_token_array(arr, 0);
@@ -481,24 +519,50 @@ node *parse_val_var(token_array *arr, token *curr)
         if (parse_type(curr) == type_none)
             print_error("Syntax error, expected type", SYNTAX_ERROR, curr->row, curr->column);
 
-        vl->idk.val_var.type = parse_type(curr);
+        vl->as.val_var.type = parse_type(curr);
 
         skip_token(arr);
         curr = peek_token_array(arr, 0);
     }
     else
-        vl->idk.val_var.type = type_none;
+        vl->as.val_var.type = type_none;
 
     if (curr->type == TOKEN_OP_ASSIGN)
     {
         skip_token(arr);
-        vl->idk.val_var.init = parse_expr(arr);
+        curr = peek_token_array(arr, 0);
+        if (curr->type == TOKEN_IDENTIFIER && peek_token_array(arr, 1)->type == TOKEN_LPAR)
+            vl->as.val_var.init = parse_call(arr);
+        else
+            vl->as.val_var.init = parse_expr(arr);
+
         return vl;
     }
     else
         print_error("Syntax error, expected '='", SYNTAX_ERROR, curr->row, curr->column);
 
     return NULL;
+}
+
+node *parse_asign(token_array *arr)
+{
+    token *curr = peek_token_array(arr, 0);
+    node *as = create_node(node_asign, curr->row, curr->column);
+
+    if (curr->data == NULL)
+        print_error("Syntax error, expected identifier", SYNTAX_ERROR, curr->row, curr->column);
+
+    as->as.asign.name = strduplicate(curr->data);
+    skip_token(arr);
+    get_token_from_array(arr, TOKEN_OP_ASSIGN, NULL);
+    curr = peek_token_array(arr,0);
+
+    if (curr->type == TOKEN_IDENTIFIER && peek_token_array(arr, 1)->type == TOKEN_LPAR)
+        as->as.asign.init = parse_call(arr);
+    else
+        as->as.asign.init = parse_expr(arr);
+
+    return as;
 }
 
 node *parse_function_body(token_array *arr)
@@ -519,41 +583,56 @@ node *parse_function_body(token_array *arr)
 
     if (!indent)
     {
-        node **temp = realloc(bl->idk.block.items, sizeof(node *) * (bl->idk.block.size + 1));
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            bl->idk.block.items = temp;
-            bl->idk.block.size++;
+        node *nn = NULL;
+        if (curr->type == TOKEN_IDENTIFIER)
+        {
+            token *ahead = peek_token_array(arr, 1);
+            if (ahead->type == TOKEN_OP_ASSIGN)
+            {
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn = parse_asign(arr);
+            }
+            else if (ahead->type == TOKEN_LPAR)
+            {
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn->as.expression.expression = parse_call(arr);
+            }
+            else
+            {
+                // n1->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression = NULL;
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn->as.expression.expression = parse_expr(arr);
+            }
+        }
+        else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+        {
+            nn = create_node(node_expression,curr->row, curr->column);
+            nn->as.expression.expression = parse_expr(arr);
+        }
+        else print_error("Syntax error, expected statement", SYNTAX_ERROR,curr->row, curr->column);
 
-            bl->idk.block.items[bl->idk.block.size - 1] = parse_expr(arr);
-            curr = peek_token_array(arr, 0);
-            
-            return bl;
+        node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
+        if (temp == NULL)
+            print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+        bl->as.block.items = temp;
+        bl->as.block.size++;
+
+        bl->as.block.items[bl->as.block.size - 1] = nn;
+        curr = peek_token_array(arr, 0);
+
+        return bl;
     }
 
-    while ((curr->type != TOKEN_DED && indent) || (!indent && curr->type != TOKEN_EOL))
+    while (curr->type != TOKEN_DED && indent)
     {
+        node *nn = NULL;
         if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
         {
-            node **temp = realloc(bl->idk.block.items, sizeof(node *) * (bl->idk.block.size + 1));
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            bl->idk.block.items = temp;
-            bl->idk.block.size++;
-
-            bl->idk.block.items[bl->idk.block.size - 1] = parse_val_var(arr, curr);
-            curr = peek_token_array(arr, 0);
+            nn = parse_val_var(arr, curr);
         }
         else if (curr->type == TOKEN_KW_RETURN)
         {
-            node **temp = realloc(bl->idk.block.items, sizeof(node *) * (bl->idk.block.size + 1));
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            bl->idk.block.items = temp;
-            bl->idk.block.size++;
-
-            bl->idk.block.items[bl->idk.block.size - 1] = parse_return(arr);
-            curr = peek_token_array(arr, 0);
+            nn = parse_return(arr);
         }
         else if (is_keyword(curr))
         {
@@ -563,13 +642,49 @@ node *parse_function_body(token_array *arr)
         {
             print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
         }
+        else if (curr->type == TOKEN_IDENTIFIER)
+        {
+            token *ahead = peek_token_array(arr, 1);
+            if (ahead->type == TOKEN_OP_ASSIGN)
+            {
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn = parse_asign(arr);
+            }
+            else if (ahead->type == TOKEN_LPAR)
+            {
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn->as.expression.expression = parse_call(arr);
+            }
+            else
+            {
+                nn = create_node(node_expression, curr->row, curr->column);
+                nn->as.expression.expression = parse_expr(arr);
+            }
+        }
+        else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+        {
+            nn = create_node(node_expression,curr->row, curr->column);
+            nn->as.expression.expression = parse_expr(arr);
+        }
         else
         {
             print_error("Syntax error", SYNTAX_ERROR, curr->row, curr->column);
         }
 
+        curr = peek_token_array(arr, 0);
+
         if (curr->type == TOKEN_DED)
+        {
+            node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
+            if (temp == NULL)
+                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+            bl->as.block.items = temp;
+            bl->as.block.size++;
+
+            bl->as.block.items[bl->as.block.size - 1] = nn;
+            curr = peek_token_array(arr, 0);
             break;
+        }
 
         if (curr->type == TOKEN_SEMICOLON)
         {
@@ -583,9 +698,20 @@ node *parse_function_body(token_array *arr)
         }
         else
         {
+            if (curr->type != TOKEN_EOL)
+                print_error("Syntax error, expected new line", SYNTAX_ERROR, curr->row, curr->column);
             skip_token(arr);
             curr = peek_token_array(arr, 0);
         }
+
+        node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
+        if (temp == NULL)
+            print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+        bl->as.block.items = temp;
+        bl->as.block.size++;
+
+        bl->as.block.items[bl->as.block.size - 1] = nn;
+        curr = peek_token_array(arr, 0);
     }
     skip_token(arr);
     return bl;
@@ -622,16 +748,16 @@ void parse_params(token_array *arr, node *n)
                 if (parse_type(curr) == type_none)
                     print_error("Syntax error, expected type", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
-                param *temp = realloc(n->idk.function.params, sizeof(param) * (n->idk.function.param_count + 1));
+                param *temp = realloc(n->as.function.params, sizeof(param) * (n->as.function.param_count + 1));
                 if (temp == NULL)
                     print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-                n->idk.function.params = temp;
-                n->idk.function.param_count++;
+                n->as.function.params = temp;
+                n->as.function.param_count++;
 
-                n->idk.function.params[n->idk.function.param_count - 1].name = tempstr;
-                n->idk.function.params[n->idk.function.param_count - 1].types = parse_type(curr);
-                n->idk.function.params[n->idk.function.param_count - 1].row = row1;
-                n->idk.function.params[n->idk.function.param_count - 1].column = collumn1;
+                n->as.function.params[n->as.function.param_count - 1].name = tempstr;
+                n->as.function.params[n->as.function.param_count - 1].types = parse_type(curr);
+                n->as.function.params[n->as.function.param_count - 1].row = row1;
+                n->as.function.params[n->as.function.param_count - 1].column = collumn1;
 
                 skip_token(arr);
                 curr = peek_token_array(arr, 0);
@@ -678,7 +804,7 @@ void parse_function_header(token_array *arr, node *n)
     if (curr->type != TOKEN_IDENTIFIER || curr->data == NULL)
         print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
-    n->idk.function.name = strduplicate(curr->data);
+    n->as.function.name = strduplicate(curr->data);
     skip_token(arr);
     curr = &arr->token_data[arr->pos];
 
@@ -713,8 +839,8 @@ void parse_function_header(token_array *arr, node *n)
     else
         type = type_none;
 
-    n->idk.function.explicit = explicit;
-    n->idk.function.return_type = type;
+    n->as.function.explicit = explicit;
+    n->as.function.return_type = type;
 
     get_token_from_array(arr, TOKEN_OP_ASSIGN, NULL);
 
@@ -725,7 +851,7 @@ void parse_function_header(token_array *arr, node *n)
         curr = peek_token_array(arr, 0);
     }
 
-    n->idk.function.body = parse_function_body(arr);
+    n->as.function.body = parse_function_body(arr);
     return;
 }
 
@@ -741,7 +867,7 @@ node *parse_def(token_array *arr, token *curr)
     }
     else
         print_error("Syntax error", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
-    n->idk.function.is_main = false;
+    n->as.function.is_main = false;
     return n;
 }
 
@@ -768,7 +894,7 @@ node *parse_main(token_array *arr, token *curr)
                 if (curr->type == TOKEN_KW_DEF)
                 {
                     node *n = parse_def(arr, curr);
-                    n->idk.function.is_main = true;
+                    n->as.function.is_main = true;
                     return n;
                 }
                 else
@@ -810,12 +936,12 @@ node *parse_head_funtion(token_array *arr)
         if (f == NULL)
             continue;
 
-        node **temp = realloc(np->idk.program.items, sizeof(node *) * (np->idk.program.size + 1));
+        node **temp = realloc(np->as.program.items, sizeof(node *) * (np->as.program.size + 1));
         if (temp == NULL)
             print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-        np->idk.program.items = temp;
-        np->idk.program.size++;
-        np->idk.program.items[np->idk.program.size - 1] = f;
+        np->as.program.items = temp;
+        np->as.program.size++;
+        np->as.program.items[np->as.program.size - 1] = f;
     }
     return np;
 }

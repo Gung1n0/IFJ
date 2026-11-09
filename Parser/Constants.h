@@ -1,14 +1,15 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-const int LEXICAL_ERROR = 1;
-const int SYNTAX_ERROR = 2;
-const int UNDEFINED = 3;
-const int UNAUTHORIZED = 4;
-const int INVALID_ARGUMENT = 5;
-const int INVALID_TYPE = 6;
-const int IMMUTABLE_WRITE = 7;
-const int SEMANTIC_ERROR = 10;
-const int INTERNAL_ERROR = 99;
-
+typedef enum{
+ LEXICAL_ERROR = 1,
+ SYNTAX_ERROR = 2,
+ UNDEFINED = 3,
+UNAUTHORIZED = 4,
+INVALID_ARGUMENT = 5,
+INVALID_TYPE = 6,
+IMMUTABLE_WRITE = 7,
+SEMANTIC_ERROR = 10,
+INTERNAL_ERROR = 99
+} error_code;
 #endif
