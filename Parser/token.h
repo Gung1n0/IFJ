@@ -4,7 +4,7 @@
 #include "Enums.h"
 typedef struct
 {
-    token_type type;
+    TokenType type;
     char *data;
     int row;
     int column;

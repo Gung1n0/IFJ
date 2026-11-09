@@ -1,22 +1,49 @@
 #ifndef ENUMS_H
 #define ENUMS_H
-
 typedef enum {
-    token_identifier,
-    token_keyword,
-    token_arithmetic_operator,
-    token_relation_operator,
-    token_int,
-    token_double,
-    token_string,
-    token_specialchar,
-    token_bracket,
-    token_semicolon,
-    token_indent,
-    token_dedent,
-    token_newline,
-    token_eof
-} token_type;
+    TOKEN_IDENTIFIER,     // napr. 'moj_vysledok'
+    TOKEN_INT_LITERAL,    // napr. 42
+    TOKEN_DOUBLE_LITERAL, // napr. 3.14
+    TOKEN_STRING_LITERAL, // napr. "ahoj"
+ 
+    // Keywords: must stay contiguous, is_keyword() checks the range
+    TOKEN_KW_DEF,
+    TOKEN_KW_DO,
+    TOKEN_KW_ELSE,
+    TOKEN_KW_IF,
+    TOKEN_KW_INT,
+    TOKEN_KW_VAL,         // NEW
+    TOKEN_KW_VAR,         // NEW
+    TOKEN_KW_RETURN,      // NEW
+    TOKEN_KW_IMPORT,      // NEW
+    TOKEN_KW_UNIT,        // NEW
+    TOKEN_KW_DOUBLE,      // NEW
+    TOKEN_KW_STRING,      // NEW
+ 
+    TOKEN_OP_PLUS,        // +
+    TOKEN_OP_MINUS,       // -
+    TOKEN_OP_MUL,         // *
+    TOKEN_OP_DIV,         // /
+    TOKEN_OP_ASSIGN,      // =
+    TOKEN_OP_EQ,          // ==
+    TOKEN_OP_NEQ,         // !=
+    TOKEN_OP_LESS,        // <
+    TOKEN_OP_MORE,        // >
+    TOKEN_OP_UNDERSC,     // _
+ 
+    TOKEN_LPAR,           // (
+    TOKEN_RPAR,           // )
+    TOKEN_COLON,          // :
+    TOKEN_COMMA,          // ,
+    TOKEN_DOT,            // .
+    TOKEN_AT,             // @
+    TOKEN_SEMICOLON,      
+ 
+    TOKEN_EOL,            
+    TOKEN_EOF,            
+    TOKEN_IND,            
+    TOKEN_DED             
+} TokenType;
 
 typedef enum {
     type_int,
@@ -48,10 +75,10 @@ typedef enum
     add,
     subtract,
     multiply,
-    devide,
+    divide,
     equal,
     negation,
-    power,
+    //power,
     lesser,
     lesser_or_equal,
     grater,
@@ -59,4 +86,5 @@ typedef enum
     not_equal,
     none
 }operator;
+
 #endif
