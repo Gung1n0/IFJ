@@ -48,9 +48,16 @@ op_result binary_operation(operator op, data_types type1, data_types type2)
     case OP_LESSER_OR_EQUAL:
     case OP_GREATER:
     case OP_GREATER_OR_EQUAL:
+        return comparison_operation(type1, type2);
     case OP_EQUAL:
     case OP_NOT_EQUAL:
-        return comparison_operation(type1, type2);
+        if (are_data_types_numeric(type1, type2) || (type1 == TYPE_STRING && type2 == TYPE_STRING))
+            return comparison_operation(type1, type2);
+
+        if (type1 == type2 && (type1 != TYPE_UNKNOWN && type1 != TYPE_ANY))
+            return (op_result){true, TYPE_BOOLEAN, type1};
+
+        return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
     default:
         return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
     }
@@ -97,6 +104,9 @@ bool is_return_compatible(data_types declared, data_types value)
 }
 bool is_valid_variable_type(data_types type)
 {
+    // remove for BOOLTHEN extension
+    if (type == TYPE_BOOLEAN)
+        return false;
     if (type == TYPE_UNKNOWN || type == TYPE_ANY)
         return false;
     return true;

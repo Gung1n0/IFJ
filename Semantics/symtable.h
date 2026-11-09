@@ -46,9 +46,9 @@ bool sym_enter_scope(sym_table *t);
 
 bool sym_exit_scope(sym_table *t);
 
-bool sym_declare_variable(sym_table *t, sym_variable *var);
+error_code sym_declare_variable(sym_table *t, sym_variable *var);
 
-bool sym_declare_function(sym_table *t, sym_function *func);
+error_code sym_declare_function(sym_table *t, sym_function *func);
 
 sym_variable *sym_lookup_variable(sym_table *t, const char *name);
 

@@ -168,22 +168,19 @@ bool sym_exit_scope(sym_table *t)
     return true;
 }
 
-bool sym_declare_variable(sym_table *t, sym_variable *var)
+error_code sym_declare_variable(sym_table *t, sym_variable *var)
 {
     if (t->innermost_scope == NULL)
-        return false;
+        return ERR_INTERNAL;
 
     bool exists = ht_search(t->innermost_scope->table, var->name);
 
     if (exists)
-    {
-        // return error 4
-        return false;
-    }
+        return ERR_REDEFINITION;
     else
     {
         if (t->variable_count >= MAX_VARIABLE_CAPACITY - 1)
-            return false;
+            return ERR_INTERNAL;
 
         bool success = ht_insert(t->innermost_scope->table, var->name, var);
         if (success)
@@ -194,9 +191,9 @@ bool sym_declare_variable(sym_table *t, sym_variable *var)
             t->variable_count++;
             t->variable_id_counter++;
 
-            return true;
+            return ERR_NONE;
         }
-        return false;
+        return ERR_INTERNAL;
     }
 }
 
@@ -219,28 +216,25 @@ sym_variable *sym_lookup_variable(sym_table *t, const char *name)
     return NULL;
 }
 
-bool sym_declare_function(sym_table *t, sym_function *func)
+error_code sym_declare_function(sym_table *t, sym_function *func)
 {
     bool exists = ht_search(t->function_table, func->name);
 
     if (exists)
-    {
-        // return error 4
-        return false;
-    }
+        return ERR_REDEFINITION;
     else
     {
         if (t->function_count >= MAX_FUNCTION_CAPACITY - 1)
-            return false;
+            return ERR_INTERNAL;
 
         bool success = ht_insert(t->function_table, func->name, func);
         if (success)
         {
             t->function_entries[t->function_count] = func;
             t->function_count++;
-            return true;
+            return ERR_NONE;
         }
-        return false;
+        return ERR_INTERNAL;
     }
 }
 
