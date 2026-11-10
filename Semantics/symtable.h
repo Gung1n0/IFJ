@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 typedef struct sym_table sym_table;
+typedef struct sym_scope_data sym_scope_data;
 
 typedef struct
 {
@@ -36,6 +37,7 @@ typedef struct
     bool is_main;
 
     inference_state i_state;
+    struct node *definition;
 } sym_function;
 
 sym_table *sym_init(void);
@@ -48,10 +50,14 @@ bool sym_exit_scope(sym_table *t);
 
 error_code sym_declare_variable(sym_table *t, sym_variable *var);
 
-error_code sym_declare_function(sym_table *t, sym_function *func);
+error_code sym_declare_function(sym_table *t, sym_function *func, struct node *def);
 
 sym_variable *sym_lookup_variable(sym_table *t, const char *name);
 
 sym_function *sym_lookup_function(sym_table *t, const char *name);
+
+sym_scope_data *sym_detach(sym_table *t);
+
+bool sym_restore(sym_table *t, sym_scope_data *data);
 
 #endif

@@ -6,13 +6,16 @@
 #include "symtable.h"
 #include "hashtable.h"
 #include "builtins.h"
+#include "../Common/common_functions.h"
 
 // TODO: rework arrays to be either linked lists or a dynamic arrays
 //       for unlimited variables and functions
-#define MAX_VARIABLE_CAPACITY 200
-#define MAX_FUNCTION_CAPACITY 100
 
-typedef struct sym_scope_data sym_scope_data;
+#define INITIAL_FUNCTION_ARRAY_CAPACITY 8
+#define FUNCTION_CAPACITY_MULTIPLIER 2
+
+#define INITIAL_VARIABLE_ARRAY_CAPACITY 8
+#define VARIABLE_CAPACITY_MULTIPLIER 2
 
 struct sym_scope_data
 {
@@ -28,18 +31,48 @@ struct sym_table
     sym_variable **variable_entries;
     sym_function **function_entries;
 
-    int variable_count;
-    int function_count;
+    int variable_size;
+    int variable_capacity;
+
+    int function_size;
+    int function_capacity;
 
     int variable_id_counter;
 };
 
-static char *strduplicate(const char *s)
+static bool append_to_function_array(sym_table *t, sym_function *f)
 {
-    char *p = malloc(strlen(s) + 1);
-    if (p != NULL)
-        strcpy(p, s);
-    return p;
+    int index = t->function_size;
+    if (index >= t->function_capacity)
+    {
+        t->function_capacity *= FUNCTION_CAPACITY_MULTIPLIER;
+        t->function_entries = realloc(t->function_entries, t->function_capacity * sizeof(sym_function *));
+        if (t->function_entries == NULL)
+            return false;
+    }
+
+    t->function_entries[index] = f;
+    t->function_size++;
+
+    return true;
+}
+
+static bool append_to_variable_array(sym_table *t, sym_variable *v)
+{
+    int index = t->variable_size;
+    if (index >= t->variable_capacity)
+    {
+        t->variable_capacity *= VARIABLE_CAPACITY_MULTIPLIER;
+        t->variable_entries = realloc(t->variable_entries, t->variable_capacity * sizeof(sym_variable *));
+        if (t->variable_entries == NULL)
+            return false;
+    }
+
+    t->variable_entries[index] = v;
+    t->variable_size++;
+    t->variable_id_counter++;
+
+    return true;
 }
 
 static void free_function_entry(sym_function *f)
@@ -99,7 +132,7 @@ static error_code register_built_in_function(sym_table *t, const char *name, con
     function->i_state = done;
     function->is_built_in = true;
 
-    error_code code = sym_declare_function(t, function);
+    error_code code = sym_declare_function(t, function, NULL);
     if (code != ERR_NONE)
         free_function_entry(function);
     return code;
@@ -159,7 +192,8 @@ sym_table *sym_init(void)
 
     t->innermost_scope = NULL;
 
-    t->function_entries = calloc(MAX_FUNCTION_CAPACITY, sizeof(sym_function *));
+    t->function_entries = calloc(INITIAL_FUNCTION_ARRAY_CAPACITY, sizeof(sym_function *));
+    t->function_capacity = INITIAL_FUNCTION_ARRAY_CAPACITY;
 
     if (t->function_entries == NULL)
     {
@@ -167,7 +201,8 @@ sym_table *sym_init(void)
         return NULL;
     }
 
-    t->variable_entries = calloc(MAX_VARIABLE_CAPACITY, sizeof(sym_variable *));
+    t->variable_entries = calloc(INITIAL_VARIABLE_ARRAY_CAPACITY, sizeof(sym_variable *));
+    t->variable_capacity = INITIAL_VARIABLE_ARRAY_CAPACITY;
 
     if (t->variable_entries == NULL)
     {
@@ -175,8 +210,8 @@ sym_table *sym_init(void)
         return NULL;
     }
 
-    t->variable_count = 0;
-    t->function_count = 0;
+    t->variable_size = 0;
+    t->function_size = 0;
 
     t->variable_id_counter = 0;
 
@@ -212,14 +247,14 @@ void sym_dispose(sym_table *t)
 
     if (t->function_entries != NULL)
     {
-        for (int i = 0; i < t->function_count; i++)
+        for (int i = 0; i < t->function_size; i++)
             free_function_entry(t->function_entries[i]);
         free(t->function_entries);
     }
 
     if (t->variable_entries != NULL)
     {
-        for (int i = 0; i < t->variable_count; i++)
+        for (int i = 0; i < t->variable_size; i++)
         {
             free(t->variable_entries[i]->name);
             free(t->variable_entries[i]);
@@ -266,18 +301,13 @@ error_code sym_declare_variable(sym_table *t, sym_variable *var)
         return ERR_REDEFINITION;
     else
     {
-        if (t->variable_count >= MAX_VARIABLE_CAPACITY - 1)
-            return ERR_INTERNAL;
-
         bool success = ht_insert(t->innermost_scope->table, var->name, var);
         if (success)
         {
             var->id = t->variable_id_counter;
 
-            t->variable_entries[t->variable_count] = var;
-            t->variable_count++;
-            t->variable_id_counter++;
-
+            if (!append_to_variable_array(t, var))
+                return ERR_INTERNAL;
             return ERR_NONE;
         }
         return ERR_INTERNAL;
@@ -299,11 +329,10 @@ sym_variable *sym_lookup_variable(sym_table *t, const char *name)
             return data;
         ptr = ptr->parent;
     }
-    // return error 3
     return NULL;
 }
 
-error_code sym_declare_function(sym_table *t, sym_function *func)
+error_code sym_declare_function(sym_table *t, sym_function *func, struct node *def)
 {
     bool exists = ht_search(t->function_table, func->name);
 
@@ -311,14 +340,13 @@ error_code sym_declare_function(sym_table *t, sym_function *func)
         return ERR_REDEFINITION;
     else
     {
-        if (t->function_count >= MAX_FUNCTION_CAPACITY - 1)
-            return ERR_INTERNAL;
+        func->definition = def;
 
         bool success = ht_insert(t->function_table, func->name, func);
         if (success)
         {
-            t->function_entries[t->function_count] = func;
-            t->function_count++;
+            if (!append_to_function_array(t, func))
+                return ERR_INTERNAL;
             return ERR_NONE;
         }
         return ERR_INTERNAL;
@@ -334,4 +362,20 @@ sym_function *sym_lookup_function(sym_table *t, const char *name)
         return NULL;
     }
     return data;
+}
+
+sym_scope_data *sym_detach(sym_table *t)
+{
+    sym_scope_data *tmp_inner_scope = t->innermost_scope;
+    t->innermost_scope = NULL;
+    return tmp_inner_scope;
+}
+
+bool sym_restore(sym_table *t, sym_scope_data *data)
+{
+    if (t->innermost_scope != NULL)
+        return false;
+
+    t->innermost_scope = data;
+    return true;
 }

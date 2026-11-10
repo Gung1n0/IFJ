@@ -51,10 +51,7 @@ void ht_dispose(ht_table *t)
     if (t != NULL)
     {
         for (int i = 0; i < t->capacity; i++)
-        {
             free(t->arr[i].key);
-            // free(t->arr[i].value);
-        }
         free(t->arr);
     }
     free(t);

@@ -1,10 +1,18 @@
 #include "semantics.h"
 #include "symtable.h"
 #include "typerules.h"
+#include "../Common/common_functions.h"
 
 #define INITIAL_LOCALS_ARRAY_SIZE 8
+#define LOCALS_CAPACITY_MULTIPLIER 2
 
 static int main_counter = 0;
+
+typedef struct
+{
+    data_types last_statement;
+    bool always_returns;
+} analysis_result;
 
 typedef struct
 {
@@ -17,19 +25,11 @@ typedef struct
     int locals_capacity;
 } sem_context;
 
-char *strduplicate(const char *s)
-{
-    char *p = malloc(strlen(s) + 1);
-    if (p != NULL)
-    {
-        strcpy(p, s);
-    }
-    return p;
-}
-
 static data_types analyze_expressions(sem_context *c, node *n);
-static data_types analyze_statement(sem_context *c, node *n);
-static void analyze_block(sem_context *c, node *n);
+static analysis_result analyze_statement(sem_context *c, node *n);
+static analysis_result analyze_block(sem_context *c, node *n);
+static data_types analyze_call(sem_context *c, node *n);
+static void analyze_function_entry(sym_table *t, sym_function *f);
 
 static const char *error_to_message(error_code err)
 {
@@ -78,7 +78,7 @@ static void append_to_locals_array(sem_context *c, sym_variable *v, node *n)
     int index = c->locals_size;
     if (index >= c->locals_capacity)
     {
-        c->locals_capacity *= 2;
+        c->locals_capacity *= LOCALS_CAPACITY_MULTIPLIER;
         c->locals = realloc(c->locals, c->locals_capacity * sizeof(sym_variable *));
         if (c->locals == NULL)
             sem_error(ERR_INTERNAL, n);
@@ -155,15 +155,57 @@ static data_types analyze_expressions(sem_context *c, node *n)
         return binar_result.result_type;
     }
     case node_call:
-        // TODO: later
-        return TYPE_UNKNOWN; // temporary
+        return analyze_call(c, n);
     default:
         sem_error(ERR_INTERNAL, n);
     }
     return TYPE_UNKNOWN;
 }
 
-static data_types analyze_statement(sem_context *c, node *n)
+static data_types analyze_call(sem_context *c, node *n)
+{
+    char *function_name = n->as.call.name;
+    sym_function *function = sym_lookup_function(c->table, function_name);
+
+    if (function == NULL)
+        sem_error(ERR_UNDEFINED, n);
+
+    if (n->as.call.size != function->parameter_count)
+        sem_error(ERR_ARGUMENTS, n);
+
+    for (int arg_id = 0; arg_id < function->parameter_count; arg_id++)
+    {
+        data_types arg_type = analyze_expressions(c, n->as.call.items[arg_id]);
+        if (!is_argument_compatible(function->parameters[arg_id], arg_type))
+            sem_error(ERR_ARGUMENTS, n);
+    }
+    switch (function->i_state)
+    {
+    case done:
+        return function->return_type;
+    case unvisited:
+    {
+        sym_scope_data *scope_data = sym_detach(c->table);
+        analyze_function_entry(c->table, function);
+        bool success = sym_restore(c->table, scope_data);
+
+        if (!success)
+            sem_error(ERR_INTERNAL, n);
+
+        return function->return_type;
+    }
+    case in_progress:
+        sem_error(ERR_TYPES, n);
+        break;
+    default:
+        sem_error(ERR_INTERNAL, n);
+        break;
+    }
+
+    return TYPE_UNKNOWN;
+}
+
+static analysis_result analyze_statement(sem_context *c, node *n)
 {
     switch (n->type)
     {
@@ -178,7 +220,7 @@ static data_types analyze_statement(sem_context *c, node *n)
         data_types value_type = analyze_expressions(c, n->as.asign.init);
         if (!is_assignable(target->data_type, value_type))
             sem_error(ERR_TYPES, n);
-        return TYPE_UNIT;
+        return (analysis_result){TYPE_UNIT, false};
     }
     case node_while:
     {
@@ -186,23 +228,55 @@ static data_types analyze_statement(sem_context *c, node *n)
         if (condition != TYPE_BOOLEAN)
             sem_error(ERR_TYPES, n->as.while_n.condition);
         analyze_block(c, n->as.while_n.body);
-        return TYPE_UNIT;
+        return (analysis_result){TYPE_UNIT, false};
     }
     case node_if:
     {
         data_types condition = analyze_expressions(c, n->as.if_n.condition);
         if (condition != TYPE_BOOLEAN)
             sem_error(ERR_TYPES, n->as.if_n.condition);
-        analyze_block(c, n->as.if_n.then);
+
+        analysis_result then_block_analysis_result = {TYPE_UNIT, false};
+        analysis_result else_block_analysis_result = {TYPE_UNIT, false};
+
+        then_block_analysis_result = analyze_block(c, n->as.if_n.then);
         if (n->as.if_n.else_n != NULL)
-            analyze_block(c, n->as.if_n.else_n);
-        return TYPE_UNIT; // TODO
+            else_block_analysis_result = analyze_block(c, n->as.if_n.else_n);
+
+        bool then_ret = then_block_analysis_result.always_returns;
+        bool else_ret = else_block_analysis_result.always_returns;
+
+        bool then_ok = then_ret || then_block_analysis_result.last_statement == TYPE_UNIT;
+        bool else_ok = else_ret || else_block_analysis_result.last_statement == TYPE_UNIT;
+
+        data_types if_type = (then_ok && else_ok) ? TYPE_UNIT : TYPE_UNKNOWN;
+        bool always_returns = then_ret && else_ret;
+
+        return (analysis_result){if_type, always_returns};
     }
     case node_return:
-        // TODO
-        return TYPE_UNIT;
+    {
+        if (!c->current_function_entry->has_explicit_return_type)
+            sem_error(ERR_TYPES, n);
+
+        data_types declared = c->current_function_entry->return_type;
+
+        if (n->as.ret.value == NULL)
+        {
+            // bare return
+            if (declared != TYPE_UNIT)
+                sem_error(ERR_TYPES, n);
+        }
+        else
+        {
+            data_types value_type = analyze_expressions(c, n->as.ret.value);
+            if (!is_return_compatible(c->current_function_entry->return_type, value_type))
+                sem_error(ERR_TYPES, n);
+        }
+        return (analysis_result){c->current_function_entry->return_type, true};
+    }
     case node_expression:
-        return analyze_expressions(c, n->as.expression.expression);
+        return (analysis_result){analyze_expressions(c, n->as.expression.expression), false};
     case node_val_var:
     {
         data_types init_type = analyze_expressions(c, n->as.val_var.init);
@@ -239,26 +313,30 @@ static data_types analyze_statement(sem_context *c, node *n)
             sem_error(code, n);
 
         append_to_locals_array(c, var, n);
-        return TYPE_UNIT;
+        return (analysis_result){TYPE_UNIT, false};
     }
+    case node_call:
+        return (analysis_result){analyze_call(c, n), false};
     default:
         sem_error(ERR_INTERNAL, n);
     }
-    return TYPE_UNIT;
+    return (analysis_result){TYPE_UNIT, false};
 }
 
-static void analyze_block(sem_context *c, node *n)
+static analysis_result analyze_block(sem_context *c, node *n)
 {
     if (!sym_enter_scope(c->table))
         sem_error(ERR_INTERNAL, n);
 
+    analysis_result result = {TYPE_UNKNOWN, false};
+
     for (int statement_id = 0; statement_id < n->as.block.size; statement_id++)
-    {
-        analyze_statement(c, n->as.block.items[statement_id]);
-    }
+        result = analyze_statement(c, n->as.block.items[statement_id]);
 
     if (!sym_exit_scope(c->table))
         sem_error(ERR_INTERNAL, n);
+
+    return result;
 }
 
 static void declare_function(sym_table *t, node *f)
@@ -308,8 +386,6 @@ static void declare_function(sym_table *t, node *f)
         if (main_counter >= 1)
             sem_error(ERR_REDEFINITION, f);
 
-        // TODO: can't check for return types until pass 2
-        // has_explicit_return_type -> return_type == unit
         if (function->has_explicit_return_type && function->return_type != TYPE_UNIT)
             sem_error(ERR_TYPES, f);
 
@@ -320,7 +396,7 @@ static void declare_function(sym_table *t, node *f)
         main_counter++;
     }
 
-    error_code code = sym_declare_function(t, function);
+    error_code code = sym_declare_function(t, function, f);
     if (code != ERR_NONE)
         sem_error(code, f);
 }
@@ -329,6 +405,9 @@ static void analyze_function(sem_context *c, node *n)
 {
     if (!sym_enter_scope(c->table))
         sem_error(ERR_INTERNAL, n);
+
+    if (!c->current_function_entry->has_explicit_return_type)
+        c->current_function_entry->i_state = in_progress;
 
     for (int param_id = 0; param_id < n->as.function.param_count; param_id++)
     {
@@ -352,10 +431,50 @@ static void analyze_function(sem_context *c, node *n)
 
         append_to_locals_array(c, var, n);
     }
-    analyze_block(c, n->as.function.body);
+    analysis_result block_result = analyze_block(c, n->as.function.body);
+
+    if (!block_result.always_returns)
+    {
+        if (c->current_function_entry->has_explicit_return_type)
+        {
+            data_types declared = c->current_function_entry->return_type;
+            if (!is_return_compatible(declared, block_result.last_statement))
+                sem_error(ERR_TYPES, n);
+        }
+        else
+        {
+            if (!is_valid_variable_type(block_result.last_statement))
+                sem_error(ERR_TYPES, n);
+
+            c->current_function_entry->return_type = block_result.last_statement;
+
+            if (c->current_function_entry->is_main && block_result.last_statement != TYPE_UNIT)
+                sem_error(ERR_TYPES, n);
+        }
+    }
+    c->current_function_entry->i_state = done;
 
     if (!sym_exit_scope(c->table))
         sem_error(ERR_INTERNAL, n);
+}
+
+static void analyze_function_entry(sym_table *t, sym_function *f)
+{
+    if (f->definition == NULL)
+    {
+        // no node to report on, so we have to exit manually
+        const char *message = error_to_message(ERR_INTERNAL);
+        fprintf(stderr, "%s", message);
+        exit(ERR_INTERNAL);
+    }
+
+    sem_context *c = init_sem_context(f->definition, t);
+    c->current_function_entry = f;
+    analyze_function(c, f->definition);
+
+    // we don't free entries because they belong to the sym_table
+    free(c->locals);
+    free(c);
 }
 
 void sem_analyze(node *program, sym_table *table)
@@ -390,9 +509,14 @@ void sem_analyze(node *program, sym_table *table)
 
         char *function_name = current->as.function.name;
 
-        sem_context *c = init_sem_context(current, table);
-        c->current_function_entry = sym_lookup_function(table, function_name);
+        sym_function *function_entry = sym_lookup_function(table, function_name);
 
-        analyze_function(c, current);
+        if (function_entry == NULL)
+            sem_error(ERR_INTERNAL, program);
+
+        if (!function_entry->has_explicit_return_type && function_entry->i_state != unvisited)
+            continue;
+
+        analyze_function_entry(table, function_entry);
     }
 }
