@@ -7,6 +7,7 @@
 #include <string.h>
 #include "Constants.h"
 #include "token.h"
+#include "Enums.h"
 
 typedef struct
 {
@@ -77,7 +78,7 @@ struct node
         {
             node *condition;
             node *body;
-            node *ret; //maybe not needed
+            node *ret; // maybe not needed
         } while_n;
         struct
         {
@@ -117,5 +118,22 @@ void print_error(const char *message, int error_code, int row, int column)
     fprintf(stderr, "%s at row %i column %i\n", message, row, column);
     exit(error_code);
 }
+
+typedef struct
+{
+    item_type type;
+    union{
+        node *n;
+        operator op;
+        bracket_type b;
+    } ast;
+} stack_item;
+
+typedef struct
+{
+    stack_item **items;
+    int size;
+    int cap;
+} stack;
 
 #endif

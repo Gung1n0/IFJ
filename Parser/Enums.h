@@ -1,17 +1,18 @@
 #ifndef ENUMS_H
 #define ENUMS_H
-typedef enum {
+typedef enum
+{
     TOKEN_IDENTIFIER,     // napr. 'moj_vysledok'
     TOKEN_INT_LITERAL,    // napr. 42
     TOKEN_DOUBLE_LITERAL, // napr. 3.14
     TOKEN_STRING_LITERAL, // napr. "ahoj"
- 
+
     TOKEN_KW_DEF,
     TOKEN_KW_DO,
     TOKEN_KW_ELSE,
     TOKEN_KW_IF,
     TOKEN_KW_INT,
-    TOKEN_KW_MAIN, //new 
+    TOKEN_KW_MAIN, // new
     TOKEN_KW_IMPORT,
     TOKEN_KW_UNIT,
     TOKEN_KW_VAL,
@@ -19,33 +20,34 @@ typedef enum {
     TOKEN_KW_RETURN,
     TOKEN_KW_WHILE,
     TOKEN_KW_THEN,
- 
-    TOKEN_OP_PLUS,        // +
-    TOKEN_OP_MINUS,       // -
-    TOKEN_OP_MUL,         // *
-    TOKEN_OP_DIV,         // /
-    TOKEN_OP_ASSIGN,      // =
-    TOKEN_OP_EQ,          // ==
-    TOKEN_OP_NEQ,         // !=
-    TOKEN_OP_LESS,        // <
-    TOKEN_OP_MORE,        // >
-    TOKEN_OP_UNDERSC,     // _
- 
-    TOKEN_LPAR,           // (
-    TOKEN_RPAR,           // )
-    TOKEN_COLON,          // :
-    TOKEN_COMMA,          // ,
-    TOKEN_DOT,            // .
-    TOKEN_AT,             // @
-    TOKEN_SEMICOLON,      
- 
-    TOKEN_EOL,            
-    TOKEN_EOF,            
-    TOKEN_IND,            
-    TOKEN_DED             
+
+    TOKEN_OP_PLUS,    // +
+    TOKEN_OP_MINUS,   // -
+    TOKEN_OP_MUL,     // *
+    TOKEN_OP_DIV,     // /
+    TOKEN_OP_ASSIGN,  // =
+    TOKEN_OP_EQ,      // ==
+    TOKEN_OP_NEQ,     // !=
+    TOKEN_OP_LESS,    // <
+    TOKEN_OP_MORE,    // >
+    TOKEN_OP_UNDERSC, // _
+
+    TOKEN_LPAR,  // (
+    TOKEN_RPAR,  // )
+    TOKEN_COLON, // :
+    TOKEN_COMMA, // ,
+    TOKEN_DOT,   // .
+    TOKEN_AT,    // @
+    TOKEN_SEMICOLON,
+
+    TOKEN_EOL,
+    TOKEN_EOF,
+    TOKEN_IND,
+    TOKEN_DED
 } TokenType;
 
-typedef enum {
+typedef enum
+{
     type_int,
     type_double,
     type_string,
@@ -53,7 +55,8 @@ typedef enum {
     type_none
 } data_types;
 
-typedef enum{
+typedef enum
+{
     node_program,
     node_function,
     node_block,
@@ -78,13 +81,27 @@ typedef enum
     divide,
     equal,
     negation,
-    //power,
+    // power,
     lesser,
     lesser_or_equal,
     grater,
     greater_or_equal,
     not_equal,
     none
-}operator;
+} operator;
+
+typedef enum
+{
+    LPAR,
+    RPAR,
+    none_b
+} bracket_type;
+
+typedef enum
+{
+    bracket,
+    op,
+    n
+}item_type;
 
 #endif

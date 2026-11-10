@@ -357,7 +357,81 @@ operator parse_operator(token *curr)
     }
 }
 
-node *parse_unar(token *curr, token_array *arr)
+stack *stack_init(int cap)
+{
+    stack *temp = malloc(sizeof(stack));
+    if (temp == NULL)
+        print_error("malloc failed", INTERNAL_ERROR, 0, 0);
+
+    if (cap <= 0)
+        cap = 1;
+    temp->items = calloc(1, sizeof(stack_item*) * cap);
+    if (temp->items == NULL)
+        print_error("malloc failed", INTERNAL_ERROR, 0, 0);
+    temp->cap = cap;
+    temp->size = 0;
+
+    return temp;
+}
+
+stack_item *create_stack_item(item_type t)
+{
+    stack_item *i = calloc(1, sizeof(stack_item));
+    if (i == NULL)
+        print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+
+    i->type = t;
+    return i;
+}
+void free_stack_item(stack_item *si)
+{
+    if (si->type == n && si->ast.n != NULL)
+        free_node(si->ast.n);
+
+    free(si);
+}
+
+void free_stack(stack *s)
+{
+    for (int i = 0; i < s->size; i++)
+    {
+        free_stack_item(s->items[i]);
+    }
+    free(s->items);
+    free(s);
+}
+
+bool is_empty_stack(stack *s)
+{
+    return s->size <= 0;
+}
+
+stack_item *stack_pop(stack *s)
+{
+    stack_item *si = NULL;
+    if (!is_empty_stack(s))
+    {
+        si = s->items[s->size-1];
+        s->size--;
+    }
+    return si;
+}
+
+void stack_add(stack_item *si, stack *s)
+{
+    if (s->cap == s->size)
+    {
+        stack_item **temp = realloc(s->items, s->cap * 2 * sizeof(stack_item*));
+        if (temp == NULL)
+            print_error("malloc failed", INTERNAL_ERROR, 0, 0);
+        s->items = temp;
+        s->cap = s->cap * 2;
+    }
+    s->items[s->size] = si;
+    s->size++;
+}
+
+node *parse_unar(token_array *arr)
 {
     // todo
     return NULL;
@@ -739,8 +813,8 @@ node *parse_while(token_array *arr)
 
     token *curr = peek_token_array(arr, 0);
     node *wh = create_node(node_while, curr->row, curr->column);
-    
-    wh->as.while_n.condition = parse_binar(arr); 
+
+    wh->as.while_n.condition = parse_binar(arr);
 
     get_token_from_array(arr, TOKEN_KW_DO, NULL);
 
@@ -759,7 +833,7 @@ node *parse_if(token_array *arr)
     get_token_from_array(arr, TOKEN_KW_IF, NULL);
 
     node *if_else = create_node(node_if, peek_token_array(arr, 0)->row, peek_token_array(arr, 0)->column);
-    
+
     if_else->as.if_n.condition = parse_binar(arr);
 
     get_token_from_array(arr, TOKEN_KW_THEN, NULL);
