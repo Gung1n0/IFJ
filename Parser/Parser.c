@@ -73,8 +73,10 @@ const char *token_name(TokenType type)
         return "'<'";
     case TOKEN_OP_MORE:
         return "'>'";
-    /*case TOKEN_OP_LEQ: return "'<='";
-    case TOKEN_OP_GEQ: return "'>='";*/
+    case TOKEN_OP_LESS_EQ:
+        return "'<='";
+    case TOKEN_OP_MORE_EQ:
+        return "'>='";
     case TOKEN_OP_UNDERSC:
         return "'_'";
     case TOKEN_LPAR:
@@ -359,10 +361,10 @@ operator parse_operator(token *curr)
         return lesser;
     case TOKEN_OP_MORE:
         return grater;
-    /*case TOKEN_OP_LEQ:
+    case TOKEN_OP_LESS_EQ:
         return lesser_or_equal;
-    case TOKEN_OP_GEQ:
-        return greater_or_equal;*/
+    case TOKEN_OP_MORE_EQ:
+        return greater_or_equal;
     default:
         return none;
     }
@@ -442,8 +444,55 @@ void stack_add(stack_item *si, stack *s)
     s->size++;
 }
 
-void create_pre_table(stack *s)
+int token_to_index(token_array *arr, int depth, int prev_index)
 {
+    token *curr = peek_token_array(arr, 0);
+
+    token *next = NULL;
+    if (arr->pos + 1 < arr->size)
+        next = peek_token_array(arr, 1);
+
+    if (curr->type == TOKEN_IDENTIFIER && next && next->type == TOKEN_LPAR)
+        print_error("didnt expect function here", SYNTAX_ERROR, curr->row, curr->column);
+
+    if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+        return 8;
+
+    if (curr->type == TOKEN_OP_MINUS && (prev_index == 8 || prev_index == 6))
+        return 1;
+    else if (curr->type == TOKEN_OP_MINUS)
+        return 4;
+
+    if (curr->type == TOKEN_RPAR && depth <= 0)
+        return 7;
+    else if (curr->type == TOKEN_RPAR)
+        return 6;
+
+    switch (curr->type)
+    {
+    case TOKEN_OP_PLUS:
+        return 0;
+    case TOKEN_OP_MUL:
+        return 2;
+    case TOKEN_OP_DIV:
+        return 3;
+    case TOKEN_LPAR:
+        return 5;
+    case TOKEN_OP_LESS:
+        return 9;
+    case TOKEN_OP_LESS_EQ:
+        return 10;
+    case TOKEN_OP_MORE:
+        return 11;
+    case TOKEN_OP_MORE_EQ:
+        return 12;
+    case TOKEN_OP_EQ:
+        return 13;
+    case TOKEN_OP_NEQ:
+        return 14;
+    default:
+        return 7;
+    }
 }
 
 node *parse_unar(token_array *arr)
@@ -661,87 +710,58 @@ node *parse_asign(token_array *arr)
 
 node *parse_block(token_array *arr)
 {
-    token *curr = peek_token_array(arr,0);
+    token *curr = peek_token_array(arr, 0);
     node *bl = NULL;
     node *nn = NULL;
-        if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
+    if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
+    {
+        nn = parse_val_var(arr, curr);
+    }
+    else if (curr->type == TOKEN_KW_RETURN)
+    {
+        nn = parse_return(arr);
+    }
+    else if (is_keyword(curr))
+    {
+        print_error("Syntax error, unexpected keyword", SYNTAX_ERROR, curr->row, curr->column);
+    }
+    else if (curr->type == TOKEN_EOF)
+    {
+        print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
+    }
+    else if (curr->type == TOKEN_IDENTIFIER)
+    {
+        token *ahead = peek_token_array(arr, 1);
+        if (ahead->type == TOKEN_OP_ASSIGN)
         {
-            nn = parse_val_var(arr, curr);
+            nn = create_node(node_expression, curr->row, curr->column);
+            nn = parse_asign(arr);
         }
-        else if (curr->type == TOKEN_KW_RETURN)
+        else if (ahead->type == TOKEN_LPAR)
         {
-            nn = parse_return(arr);
+            nn = create_node(node_expression, curr->row, curr->column);
+            nn->as.expression.expression = parse_call(arr);
         }
-        else if (is_keyword(curr))
-        {
-            print_error("Syntax error, unexpected keyword", SYNTAX_ERROR, curr->row, curr->column);
-        }
-        else if (curr->type == TOKEN_EOF)
-        {
-            print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
-        }
-        else if (curr->type == TOKEN_IDENTIFIER)
-        {
-            token *ahead = peek_token_array(arr, 1);
-            if (ahead->type == TOKEN_OP_ASSIGN)
-            {
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn = parse_asign(arr);
-            }
-            else if (ahead->type == TOKEN_LPAR)
-            {
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn->as.expression.expression = parse_call(arr);
-            }
-            else
-            {
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn->as.expression.expression = parse_expr(arr);
-            }
-        }
-        else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+        else
         {
             nn = create_node(node_expression, curr->row, curr->column);
             nn->as.expression.expression = parse_expr(arr);
         }
-        else
-        {
-            print_error("Syntax error", SYNTAX_ERROR, curr->row, curr->column);
-        }
+    }
+    else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+    {
+        nn = create_node(node_expression, curr->row, curr->column);
+        nn->as.expression.expression = parse_expr(arr);
+    }
+    else
+    {
+        print_error("Syntax error", SYNTAX_ERROR, curr->row, curr->column);
+    }
 
-        curr = peek_token_array(arr, 0);
+    curr = peek_token_array(arr, 0);
 
-        if (curr->type == TOKEN_DED)
-        {
-            node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            bl->as.block.items = temp;
-            bl->as.block.size++;
-
-            bl->as.block.items[bl->as.block.size - 1] = nn;
-            curr = peek_token_array(arr, 0);
-            return bl;
-        }
-
-        if (curr->type == TOKEN_SEMICOLON)
-        {
-            skip_token(arr);
-            curr = peek_token_array(arr, 0);
-            if (curr->type == TOKEN_EOL)
-            {
-                skip_token(arr);
-                curr = peek_token_array(arr, 0);
-            }
-        }
-        else
-        {
-            if (curr->type != TOKEN_EOL)
-                print_error("Syntax error, expected new line", SYNTAX_ERROR, curr->row, curr->column);
-            skip_token(arr);
-            curr = peek_token_array(arr, 0);
-        }
-
+    if (curr->type == TOKEN_DED)
+    {
         node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
         if (temp == NULL)
             print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
@@ -749,7 +769,36 @@ node *parse_block(token_array *arr)
         bl->as.block.size++;
 
         bl->as.block.items[bl->as.block.size - 1] = nn;
+        curr = peek_token_array(arr, 0);
         return bl;
+    }
+
+    if (curr->type == TOKEN_SEMICOLON)
+    {
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+        if (curr->type == TOKEN_EOL)
+        {
+            skip_token(arr);
+            curr = peek_token_array(arr, 0);
+        }
+    }
+    else
+    {
+        if (curr->type != TOKEN_EOL)
+            print_error("Syntax error, expected new line", SYNTAX_ERROR, curr->row, curr->column);
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+    }
+
+    node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
+    if (temp == NULL)
+        print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+    bl->as.block.items = temp;
+    bl->as.block.size++;
+
+    bl->as.block.items[bl->as.block.size - 1] = nn;
+    return bl;
 }
 
 node *parse_function_body(token_array *arr)

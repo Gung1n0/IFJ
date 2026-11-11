@@ -30,6 +30,8 @@ typedef enum
     TOKEN_OP_NEQ,     // !=
     TOKEN_OP_LESS,    // <
     TOKEN_OP_MORE,    // >
+    TOKEN_OP_LESS_EQ, // <=
+    TOKEN_OP_MORE_EQ, // >=
     TOKEN_OP_UNDERSC, // _
 
     TOKEN_LPAR,  // (
@@ -112,9 +114,23 @@ typedef enum
 
 
 typedef enum{
-    plus,minus,multiply,divide,negate, lpar, rpar, end, i, less, less_equal, greater, greater_equal, is_eqal, is_not_equal
+    prec_plus, 
+    prec_minus, 
+    prec_multiply, 
+    prec_divide, 
+    prec_negate, 
+    prec_lpar, 
+    prec_rpar, 
+    prec_end, 
+    prec_i, 
+    prec_less, 
+    prec_less_equal, 
+    prec_greater, 
+    prec_greater_equal, 
+    prec_is_eqal, 
+    prec_is_not_equal
 }symbols;
 typedef enum{
-    shift, reduce, equal, error
+    shift, reduce, prec_equal, error
 }actions;
 #endif

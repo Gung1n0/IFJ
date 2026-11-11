@@ -7,7 +7,6 @@
 #include <string.h>
 #include "Constants.h"
 #include "token.h"
-#include "Enums.h"
 
 typedef struct
 {
