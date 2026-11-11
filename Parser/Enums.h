@@ -104,4 +104,17 @@ typedef enum
     n
 }item_type;
 
+typedef enum
+{
+    L_TO_R,
+    R_TO_L
+}asocitivity;
+
+
+typedef enum{
+    plus,minus,multiply,divide,negate, lpar, rpar, end, i, less, less_equal, greater, greater_equal, is_eqal, is_not_equal
+}symbols;
+typedef enum{
+    shift, reduce, equal, error
+}actions;
 #endif

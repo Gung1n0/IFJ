@@ -17,8 +17,19 @@ char *strduplicate(const char *s)
 
 bool is_keyword(token *t)
 {
-
-    return t->type >= TOKEN_KW_DEF && t->type <= TOKEN_STRING_LITERAL;
+    return t->type == TOKEN_KW_DEF ||
+           t->type == TOKEN_KW_DO ||
+           t->type == TOKEN_KW_ELSE ||
+           t->type == TOKEN_KW_IF ||
+           t->type == TOKEN_KW_INT ||
+           t->type == TOKEN_KW_MAIN ||
+           t->type == TOKEN_KW_IMPORT ||
+           t->type == TOKEN_KW_UNIT ||
+           t->type == TOKEN_KW_VAL ||
+           t->type == TOKEN_KW_VAR ||
+           t->type == TOKEN_KW_RETURN ||
+           t->type == TOKEN_KW_WHILE ||
+           t->type == TOKEN_KW_THEN;
 }
 
 const char *token_name(TokenType type)
@@ -365,7 +376,7 @@ stack *stack_init(int cap)
 
     if (cap <= 0)
         cap = 1;
-    temp->items = calloc(1, sizeof(stack_item*) * cap);
+    temp->items = calloc(1, sizeof(stack_item *) * cap);
     if (temp->items == NULL)
         print_error("malloc failed", INTERNAL_ERROR, 0, 0);
     temp->cap = cap;
@@ -411,7 +422,7 @@ stack_item *stack_pop(stack *s)
     stack_item *si = NULL;
     if (!is_empty_stack(s))
     {
-        si = s->items[s->size-1];
+        si = s->items[s->size - 1];
         s->size--;
     }
     return si;
@@ -421,7 +432,7 @@ void stack_add(stack_item *si, stack *s)
 {
     if (s->cap == s->size)
     {
-        stack_item **temp = realloc(s->items, s->cap * 2 * sizeof(stack_item*));
+        stack_item **temp = realloc(s->items, s->cap * 2 * sizeof(stack_item *));
         if (temp == NULL)
             print_error("malloc failed", INTERNAL_ERROR, 0, 0);
         s->items = temp;
@@ -429,6 +440,10 @@ void stack_add(stack_item *si, stack *s)
     }
     s->items[s->size] = si;
     s->size++;
+}
+
+void create_pre_table(stack *s)
+{
 }
 
 node *parse_unar(token_array *arr)
@@ -644,68 +659,11 @@ node *parse_asign(token_array *arr)
     return as;
 }
 
-node *parse_function_body(token_array *arr)
+node *parse_block(token_array *arr)
 {
-    node *bl = create_node(node_block, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
-    token *curr = peek_token_array(arr, 0);
-    bool indent = false;
-
-    if (curr->type == TOKEN_IND)
-    {
-        indent = true;
-        skip_token(arr);
-        curr = peek_token_array(arr, 0);
-    }
-
-    if (curr->type == TOKEN_DED && indent)
-        print_error("Syntax error, empty block", SYNTAX_ERROR, curr->row, curr->column);
-
-    if (!indent)
-    {
-        node *nn = NULL;
-        if (curr->type == TOKEN_IDENTIFIER)
-        {
-            token *ahead = peek_token_array(arr, 1);
-            if (ahead->type == TOKEN_OP_ASSIGN)
-            {
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn = parse_asign(arr);
-            }
-            else if (ahead->type == TOKEN_LPAR)
-            {
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn->as.expression.expression = parse_call(arr);
-            }
-            else
-            {
-                // n1->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression->idk.expression.expression = NULL;
-                nn = create_node(node_expression, curr->row, curr->column);
-                nn->as.expression.expression = parse_expr(arr);
-            }
-        }
-        else if (curr->type == TOKEN_INT_LITERAL || curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
-        {
-            nn = create_node(node_expression, curr->row, curr->column);
-            nn->as.expression.expression = parse_expr(arr);
-        }
-        else
-            print_error("Syntax error, expected statement", SYNTAX_ERROR, curr->row, curr->column);
-
-        node **temp = realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
-        if (temp == NULL)
-            print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-        bl->as.block.items = temp;
-        bl->as.block.size++;
-
-        bl->as.block.items[bl->as.block.size - 1] = nn;
-        curr = peek_token_array(arr, 0);
-
-        return bl;
-    }
-
-    while (curr->type != TOKEN_DED && indent)
-    {
-        node *nn = NULL;
+    token *curr = peek_token_array(arr,0);
+    node *bl = NULL;
+    node *nn = NULL;
         if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
         {
             nn = parse_val_var(arr, curr);
@@ -763,7 +721,7 @@ node *parse_function_body(token_array *arr)
 
             bl->as.block.items[bl->as.block.size - 1] = nn;
             curr = peek_token_array(arr, 0);
-            break;
+            return bl;
         }
 
         if (curr->type == TOKEN_SEMICOLON)
@@ -791,6 +749,33 @@ node *parse_function_body(token_array *arr)
         bl->as.block.size++;
 
         bl->as.block.items[bl->as.block.size - 1] = nn;
+        return bl;
+}
+
+node *parse_function_body(token_array *arr)
+{
+    node *bl = create_node(node_block, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
+    token *curr = peek_token_array(arr, 0);
+    bool indent = false;
+
+    if (curr->type == TOKEN_IND)
+    {
+        indent = true;
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+    }
+
+    if (curr->type == TOKEN_DED && indent)
+        print_error("Syntax error, empty block", SYNTAX_ERROR, curr->row, curr->column);
+
+    if (!indent)
+    {
+        parse_block(arr);
+    }
+
+    while (curr->type != TOKEN_DED && indent)
+    {
+        parse_block(arr);
         curr = peek_token_array(arr, 0);
     }
     skip_token(arr);
@@ -821,7 +806,7 @@ node *parse_while(token_array *arr)
     get_token_from_array(arr, TOKEN_EOL, NULL);
     get_token_from_array(arr, TOKEN_IND, NULL);
 
-    wh->as.while_n.body = parse_function_body(arr);
+    wh->as.while_n.body = parse_block(arr);
 
     wh->as.while_n.ret = parse_expr(arr);
 
@@ -842,7 +827,7 @@ node *parse_if(token_array *arr)
 
     get_token_from_array(arr, TOKEN_IND, NULL);
 
-    if_else->as.if_n.then = parse_function_body(arr);
+    if_else->as.if_n.then = parse_block(arr);
 
     get_token_from_array(arr, TOKEN_EOL, NULL);
 
@@ -852,7 +837,7 @@ node *parse_if(token_array *arr)
 
     get_token_from_array(arr, TOKEN_IND, NULL);
 
-    if_else->as.if_n.else_n = parse_function_body(arr);
+    if_else->as.if_n.else_n = parse_block(arr);
 
     return if_else;
 }

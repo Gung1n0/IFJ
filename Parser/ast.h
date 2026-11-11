@@ -136,4 +136,8 @@ typedef struct
     int cap;
 } stack;
 
+typedef struct{
+     actions table[15][15];
+}pre_talbe;
+
 #endif
