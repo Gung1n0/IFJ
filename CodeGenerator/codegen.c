@@ -48,6 +48,7 @@ typedef struct
         struct
         {
             char *name;
+            char *part;
         } function;
 
         // type@number
@@ -55,6 +56,7 @@ typedef struct
         {
             char *type;
             int number;
+            char *part;
         } numbered;
     } as;
 } gen_operand;
@@ -62,6 +64,7 @@ typedef struct
 typedef struct
 {
     node *program;
+    node *function;
 
 } gen_context;
 
@@ -115,11 +118,11 @@ static gen_operand operand_label(char *label)
 }
 
 // label of user defined function
-static gen_operand operand_function(char *function_name)
+static gen_operand operand_function(char *function_name, char *part)
 {
     gen_operand operand = {
         .type = OPERAND_FUNCTION,
-        .as.function = function_name};
+        .as.function = {function_name, part}};
     return operand;
 }
 
@@ -137,7 +140,7 @@ static node *find_main(node *program)
     return NULL;
 }
 
-// print string literal
+// print string literal with escape sequences based on IFJcode26 specification
 static void print_string_literal(char *str)
 {
     for (int i = 0; str[i] != '\0'; i++)
@@ -166,8 +169,8 @@ static void print_string_literal(char *str)
 
 static void print_operand(gen_operand operand)
 {
-    
-     if (operand.type == OPERAND_INT)
+
+    if (operand.type == OPERAND_INT)
     {
         printf(" int@%d", operand.as.int_value);
     }
@@ -186,7 +189,12 @@ static void print_operand(gen_operand operand)
     }
     else if (operand.type == OPERAND_FUNCTION)
     {
-        printf(" fn$%s", operand.as.function);
+        printf(" fn$%s", operand.as.function.name);
+
+        if (operand.as.function.part != NULL)
+        {
+            printf("$%s", operand.as.function.part);
+        }
     }
     else
     {
@@ -195,19 +203,112 @@ static void print_operand(gen_operand operand)
 }
 
 // print instruction with operands
-static void print_instruction(char *code, int cnt, gen_operand *operands){
+static void print_instruction(char *code, int cnt, gen_operand *operands)
+{
     printf("%s", code);
-    for (int i = 0; index < cnt; i++){
+    for (int i = 0; index < cnt; i++)
+    {
         print_operand(operands[i]);
     }
     putchar('\n');
 }
+
+// functions for separate instructions
+
+static void createframe_(void)
+{
+    write_instruction("createframe", 0, NULL);
+}
+
+static void pushframe_(void)
+{
+    write_instruction("pushframe", 0, NULL);
+}
+
+static void popframe_(void)
+{
+    write_instruction("popframe", 0, NULL);
+}
+
+static void return_(void)
+{
+    write_instruction("return", 0, NULL);
+}
+
+static void defvar_(gen_operand variable)
+{
+    write_instruction("defvar", 1, &variable);
+}
+
+static void pushs_(gen_operand value)
+{
+    write_instruction("pushs", 1, &value);
+}
+
+static void pops_(gen_operand variable)
+{
+    write_instruction("pops", 1, &variable);
+}
+
+static void remove_(void)
+{
+    printf("pops GF@$remove\n");
+}
+
+static void label_(gen_operand label)
+{
+    write_instruction("label", 1, &label);
+}
+
+static void jump_(gen_operand label)
+{
+    write_instruction("jump", 1, &label);
+}
+
+static void jumpifeqs_(gen_operand label)
+{
+    write_instruction("jumifeqs", 1, &label);
+}
+
+static void call_(gen_operand label)
+{
+    write_instruction("call", 1, &label);
+}
+
+static void exit_(gen_operand exit_code)
+{
+    write_instruction("exit", 1, &exit_code);
+}
+
+// varuables for temporary values in code generation
+static char *gen_global_temp[] ={
+    "$remove",
+    NULL
+};
 
 /*
 void builtins_gen(void){
 
 }
 */
+
+// translation of AST to subprogram in IFJcode
+static void function_generate(gen_context *cg, node *fn)
+{
+    char *name = fn->as.function.name;
+    cg->function = fn;
+
+    // beginning of function
+    label_(operand_function(name, NULL));
+    createframe_();
+    pushframe_();
+
+    // end of function
+    label_(operand_function(name, "end"));
+    popframe_();
+    return_();
+
+}
 
 // generating code from AST
 static void code_generate(struct node *program)
@@ -217,6 +318,19 @@ static void code_generate(struct node *program)
     if (main_function == NULL)
     {
         internal_err(program, "@main not found");
+    }
+    gen_context cg = {
+        .program = program
+    };
+
+    for(int i = 0; gen_global_temp[i] != NULL; i++){
+        printf("defvar GF@%s\n", gen_global_temp[i]);
+    }
+    call_(operand_function(main_function->as.function.name, NULL));
+    exit_(operand_int(0));
+
+    for (int i = 0; i < program->as.program.size; i++){
+        function_generate(&cg, program->as.program.items[i]);
     }
 
     // IFJ header
