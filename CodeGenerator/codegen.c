@@ -12,6 +12,7 @@ typedef enum
     OPERAND_NIL,
     OPERAND_FUNCTION,
     OPERAND_LABEL,
+    OPERAND_FLOAT,
 } gen_operand_type;
 
 typedef struct
@@ -26,9 +27,6 @@ typedef struct
             char *name;
             int number;
         } var;
-
-        // GF@global_name
-        char *global_name;
 
         // int@int_value
         int int_value;
@@ -73,9 +71,9 @@ static void internal_err(node *where, char *msg)
 {
     if (where != NULL)
     {
-        error_exit(INTERNAL_ERROR, "%s, %d %d", msg, where->row, where->column);
+        // error_exit(INTERNAL_ERROR, "%s, %d %d", msg, where->row, where->column);
     }
-    error_exit(INTERNAL_ERROR, "%s", msg);
+    // error_exit(INTERNAL_ERROR, "%s", msg);
 }
 
 // operand construction functions
@@ -123,6 +121,14 @@ static gen_operand operand_function(char *function_name, char *part)
     gen_operand operand = {
         .type = OPERAND_FUNCTION,
         .as.function = {function_name, part}};
+    return operand;
+}
+
+static gen_operand operand_float(double value)
+{
+    gen_operand operand = {
+        .type = OPERAND_FLOAT,
+        .as.float_value = value};
     return operand;
 }
 
@@ -187,6 +193,10 @@ static void print_operand(gen_operand operand)
     {
         printf(" %s", operand.as.label);
     }
+    else if (operand.type == OPERAND_FLOAT)
+    {
+        printf(" float@%g", operand.as.float_value);
+    }
     else if (operand.type == OPERAND_FUNCTION)
     {
         printf(" fn$%s", operand.as.function.name);
@@ -198,15 +208,15 @@ static void print_operand(gen_operand operand)
     }
     else
     {
-        internal_error(NULL, "Unknown operand type");
+        internal_err(NULL, "Unknown operand type");
     }
 }
 
 // print instruction with operands
-static void print_instruction(char *code, int cnt, gen_operand *operands)
+static void write_instruction(char *code, int cnt, gen_operand *operands)
 {
     printf("%s", code);
-    for (int i = 0; index < cnt; i++)
+    for (int i = 0; i < cnt; i++)
     {
         print_operand(operands[i]);
     }
@@ -250,9 +260,9 @@ static void pops_(gen_operand variable)
     write_instruction("pops", 1, &variable);
 }
 
-static void remove_(void)
+static void discard_(void)
 {
-    printf("pops GF@$remove\n");
+    printf("pops GF@$discard\n");
 }
 
 static void label_(gen_operand label)
@@ -267,7 +277,7 @@ static void jump_(gen_operand label)
 
 static void jumpifeqs_(gen_operand label)
 {
-    write_instruction("jumifeqs", 1, &label);
+    write_instruction("jumpifeqs", 1, &label);
 }
 
 static void call_(gen_operand label)
@@ -281,37 +291,166 @@ static void exit_(gen_operand exit_code)
 }
 
 // varuables for temporary values in code generation
-static char *gen_global_temp[] ={
-    "$remove",
+static char *gen_global_temp[] = {
+    "$discard",
+    "$first",
+    "$second",
+    "$third",
+    "$first_type",
+    "$second_type",
+    "$result",
+    NULL};
+
+static char *gen_library[] = {
+
+    // built-in functions
+
+    // print function
+    "label fn$print",
+    "pops GF@$first",
+    "type GF@$first_type GF@$first",
+    "jumpifeqs fn$print$unit GF@$first_type string@nil",
+    "write GF@$first",
+    "pushs nil@nil",
+    "return",
+    "label fn$print$unit",
+    "write string@()",
+    "pushs nil@nil",
+    "return",
+
     NULL
+
 };
 
-/*
-void builtins_gen(void){
+//  ------- generation of expressions and statements
+static void expression_generate(gen_context *ctx, node *expr);
+
+static void literal_generate(node *lit)
+{
+
+    if (lit->as.lit.type == type_int)
+    {
+        pushs_(operand_int(lit->as.lit.i));
+    }
+    else if (lit->as.lit.type == type_double)
+    {
+        pushs_(operand_float(lit->as.lit.d));
+    }
+    else if (lit->as.lit.type == type_string)
+    {
+        pushs_(operand_string(lit->as.lit.s));
+    }
+    else if (lit->as.lit.type == type_unit)
+    {
+        pushs_(operand_nil());
+    }
+    else
+    {
+        internal_err(lit, "Unknown literal type");
+    }
+}
+
+static void identifier_generate()
+{
+}
+
+static void call_generate(gen_context *ctx, node *call)
+{
+    char *name = call->as.call.name;
+    for (int i = 0; i < call->as.call.size; i++)
+    {
+        expression_generate(ctx, call->as.call.items[i]);
+    }
+    call_(operand_function(name, NULL));
+}
+
+
+//generated expression will be on top of stack
+static void expression_generate(gen_context *ctx, node *expr)
+{
+    if (expr->type == node_lit)
+    {
+        literal_generate(expr);
+    }
+    else if (expr->type == node_call)
+    {
+        call_generate(ctx, expr);
+    }
+    else if (expr->type == node_expression)
+    {
+        expression_generate(ctx, expr->as.expression.expression);
+    }
+    else
+    {
+        internal_err(expr, "neočakávaný uzol na mieste výrazu");
+    }
+}
+
+
+// ------ generation of statements and blocks
+
+// changes value on top of stack to match return type of function
+static void set_return_type(gen_context *ctx){
+    node *fn = ctx->function;
+    if (!fn->as.function.explicit){
+        return;
+    }
+    if(fn->as.function.return_type == type_unit){
+        discard_();
+        pushs_(operand_nil());
+    }
+    else{
+        // TODO: convert value on top of stack to match return type of function
+    }
+}
+
+static void statement_generate(gen_context *ctx, node *stmnt)
+{
+    if(stmnt->type == node_expression){
+        expression_generate(ctx, stmnt->as.expression.expression);
+        discard_();
+    }
+    /*
+    else if(){
+        // TODO: implement other statement types (val/var, assignment, return, if, while)
+    }
+    */
+    else{
+        internal_err(stmnt, "unexpected node in statement");
+    }
+}
+
+static void block_generate()
+{
 
 }
-*/
 
-// translation of AST to subprogram in IFJcode
-static void function_generate(gen_context *cg, node *fn)
+
+// ----- generation of functions and whole program
+
+static void function_generate(gen_context *ctx, node *fn)
 {
     char *name = fn->as.function.name;
-    cg->function = fn;
+    ctx->function = fn;
 
     // beginning of function
     label_(operand_function(name, NULL));
     createframe_();
     pushframe_();
 
+
+
+    block_generate(ctx, fn->as.function.body, true);
+    set_return_type(ctx);
+
     // end of function
     label_(operand_function(name, "end"));
     popframe_();
     return_();
-
 }
 
 // generating code from AST
-static void code_generate(struct node *program)
+void code_generate(struct node *program)
 {
 
     node *main_function = find_main(program);
@@ -319,22 +458,30 @@ static void code_generate(struct node *program)
     {
         internal_err(program, "@main not found");
     }
-    gen_context cg = {
-        .program = program
-    };
+    gen_context ctx = {
+        .program = program};
+    
+        // IFJ header
+    printf(".IFJcode26\n");
 
-    for(int i = 0; gen_global_temp[i] != NULL; i++){
+    for (int i = 0; gen_global_temp[i] != NULL; i++)
+    {
         printf("defvar GF@%s\n", gen_global_temp[i]);
     }
     call_(operand_function(main_function->as.function.name, NULL));
     exit_(operand_int(0));
 
-    for (int i = 0; i < program->as.program.size; i++){
+    for(int i = 0; gen_library[i] != NULL; i++)
+    {
+        printf("%s\n", gen_library[i]);
+    }
+
+    for (int i = 0; i < program->as.program.size; i++)
+    {
         function_generate(&cg, program->as.program.items[i]);
     }
 
-    // IFJ header
-    printf(".IFJcode26\n");
+    
 
     // builtins_gen();
 }
