@@ -1,5 +1,6 @@
 #ifndef ENUMS_H
 #define ENUMS_H
+
 typedef enum
 {
     TOKEN_IDENTIFIER,     // napr. 'moj_vysledok'
@@ -86,7 +87,7 @@ typedef enum
     // power,
     lesser,
     lesser_or_equal,
-    grater,
+    greater,
     greater_or_equal,
     not_equal,
     none
@@ -101,36 +102,39 @@ typedef enum
 
 typedef enum
 {
-    bracket,
-    op,
-    n
-}item_type;
+    terminal,
+    node_item
+} item_type;
 
 typedef enum
 {
     L_TO_R,
     R_TO_L
-}asocitivity;
+} asocitivity;
 
-
-typedef enum{
-    prec_plus, 
-    prec_minus, 
-    prec_multiply, 
-    prec_divide, 
-    prec_negate, 
-    prec_lpar, 
-    prec_rpar, 
-    prec_end, 
-    prec_i, 
-    prec_less, 
-    prec_less_equal, 
-    prec_greater, 
-    prec_greater_equal, 
-    prec_is_eqal, 
+typedef enum
+{
+    prec_plus,
+    prec_minus,
+    prec_multiply,
+    prec_divide,
+    prec_negate,
+    prec_lpar,
+    prec_rpar,
+    prec_end,
+    prec_i,
+    prec_less,
+    prec_less_equal,
+    prec_greater,
+    prec_greater_equal,
+    prec_is_eqal,
     prec_is_not_equal
-}symbols;
-typedef enum{
-    shift, reduce, prec_equal, error
-}actions;
+} symbols;
+typedef enum
+{
+    shift,
+    reduce,
+    prec_equal,
+    error
+} actions;
 #endif

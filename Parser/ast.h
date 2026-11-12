@@ -123,8 +123,7 @@ typedef struct
     item_type type;
     union{
         node *n;
-        operator op;
-        bracket_type b;
+        int term;
     } ast;
 } stack_item;
 

@@ -360,7 +360,7 @@ operator parse_operator(token *curr)
     case TOKEN_OP_LESS:
         return lesser;
     case TOKEN_OP_MORE:
-        return grater;
+        return greater;
     case TOKEN_OP_LESS_EQ:
         return lesser_or_equal;
     case TOKEN_OP_MORE_EQ:
@@ -398,7 +398,7 @@ stack_item *create_stack_item(item_type t)
 }
 void free_stack_item(stack_item *si)
 {
-    if (si->type == n && si->ast.n != NULL)
+    if (si->type == node_item && si->ast.n != NULL)
         free_node(si->ast.n);
 
     free(si);
@@ -495,19 +495,7 @@ int token_to_index(token_array *arr, int depth, int prev_index)
     }
 }
 
-node *parse_unar(token_array *arr)
-{
-    // todo
-    return NULL;
-}
-
-node *parse_binar(token_array *arr)
-{
-    // todo
-    return NULL;
-}
-
-node *parse_expr(token_array *arr)
+node *parse_term(token_array *arr)
 {
     token *curr = peek_token_array(arr, 0);
     if (curr->data == NULL)
@@ -547,6 +535,234 @@ node *parse_expr(token_array *arr)
     else
         print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
     return NULL;
+}
+
+int top_terminal(stack *st)
+{
+    if (st == NULL || st->size <= 0)
+        return 7;
+
+    int i = st->size - 1;
+    while (i >= 0 && st->items[i]->type != terminal)
+        i--;
+
+    if (i < 0)
+        return 7;
+
+    return st->items[i]->ast.term;
+}
+
+operator idx_to_op(int idx)
+{
+    switch (idx)
+    {
+    case 0:
+        return add;
+    case 1:
+        return subtract;
+    case 2:
+        return multiply;
+    case 3:
+        return divide;
+    case 4:
+        return negation;
+    case 9:
+        return lesser;
+    case 10:
+        return lesser_or_equal;
+    case 11:
+        return greater;
+    case 12:
+        return greater_or_equal;
+    case 13:
+        return equal;
+    case 14:
+        return not_equal;
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    default:
+        return none;
+    }
+}
+
+void reduce_stack(stack *st, token *curr)
+{
+    node *nn = NULL;
+
+    if (st->size >= 2 && st->items[st->size - 1]->type == node_item && st->items[st->size - 2]->type == terminal && st->items[st->size - 2]->ast.term == 4)
+    {
+        stack_item *s1 = stack_pop(st);
+        stack_item *neg = stack_pop(st);
+
+        nn = create_node(node_unar, curr->row, curr->column);
+        nn->as.unar.op = idx_to_op(neg->ast.term);
+        nn->as.unar.operand = s1->ast.n;
+
+        free(s1);
+        free(neg);
+    }
+    else if (st->size >= 3 && st->items[st->size - 1]->type == node_item && st->items[st->size - 2]->type == terminal && st->items[st->size - 3]->type == node_item)
+    {
+        if (st->items[st->size - 2]->ast.term > 3 && st->items[st->size - 2]->ast.term < 9)
+        {
+            free_stack(st);
+            print_error("Syntax error, unexpected operator", SYNTAX_ERROR, curr->row, curr->column);
+        }
+
+        stack_item *sir = stack_pop(st);
+        stack_item *op = stack_pop(st);
+        stack_item *sil = stack_pop(st);
+
+        nn = create_node(node_binar, curr->row, curr->column);
+        nn->as.binar.right = sir->ast.n;
+        free(sir);
+
+        nn->as.binar.op = idx_to_op(op->ast.term);
+        free(op);
+
+        nn->as.binar.left = sil->ast.n;
+        free(sil);
+    }
+    else if (st->size >= 3 && st->items[st->size - 1]->type == terminal && st->items[st->size - 2]->type == node_item && st->items[st->size - 3]->type == terminal)
+    {
+        if (!(st->items[st->size - 1]->ast.term == 6 && st->items[st->size - 3]->ast.term == 5))
+        {
+            free_stack(st);
+            print_error("Syntax error, unexpected term", SYNTAX_ERROR, curr->row, curr->column);
+        }
+
+        stack_item *sir = stack_pop(st); 
+        stack_item *s1 = stack_pop(st);          
+        stack_item *sil = stack_pop(st);
+
+        nn = s1->ast.n;
+
+        free(sir);
+        free(sil);
+        free(s1);
+    }
+    else
+    {
+        free_stack(st);
+        print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
+    }
+
+    stack_item *si = create_stack_item(node_item);
+    si->ast.n = nn;
+    stack_add(si, st);
+}
+
+node *parse_expr(token_array *arr)
+{
+    stack *st = stack_init(2);
+
+    stack_item *si = create_stack_item(terminal);
+    si->ast.term = 7;
+    stack_add(si, st);
+
+    int depth = 0;
+    int prev_index = 7;
+    bool done = false;
+
+    while (!done)
+    {
+        int row = top_terminal(st);
+
+        token *curr = peek_token_array(arr, 0);
+        int column = token_to_index(arr, depth, prev_index);
+
+        actions ac = table[row][column];
+
+        switch (ac)
+        {
+        case shift:
+            if (column == 8)
+            {
+                if (prev_index == 8 || prev_index == 6)
+                {
+                    free_stack(st);
+                    print_error("Syntax error, unexpected operand", SYNTAX_ERROR, curr->row, curr->column);
+                }
+
+                si = create_stack_item(node_item);
+                si->ast.n = parse_term(arr);
+                stack_add(si, st);
+            }
+            else
+            {
+                si = create_stack_item(terminal);
+                if (column == 5)
+                    depth++;
+                else if (column == 6)
+                    depth--;
+                si->ast.term = column;
+                stack_add(si, st);
+                skip_token(arr);
+            }
+            prev_index = column;
+            break;
+
+        case reduce:
+            reduce_stack(st, curr);
+            break;
+
+        case prec_equal:
+            if (row == 5 && column == 6)
+            {
+                depth--;
+                skip_token(arr);
+                prev_index = 6;
+                si = create_stack_item(terminal);
+                si->ast.term = 6;
+                stack_add(si, st);
+                reduce_stack(st, curr);
+            }
+            else if (row == 7 && column == 7)
+            {
+                done = true;
+            }
+            break;
+
+        case error:
+        default:
+        {
+            int err_row = 0;
+            if (curr)
+                err_row = curr->row;
+
+            int err_col = 0;
+            if (curr)
+                err_col = curr->column;
+
+            free_stack(st);
+            print_error("syntax error: unexpected token", SYNTAX_ERROR, err_row, err_col);
+        }
+        break;
+        }
+    }
+
+    token *curr = peek_token_array(arr, 0);
+
+    if (st->size != 2 || st->items[1]->type != node_item)
+    {
+        free_stack(st);
+        int err_row = 0;
+        int err_col = 0;
+        if (curr)
+        {
+            err_row = curr->row;
+            err_col = curr->column;
+        }
+        print_error("Syntax error, incorrect expression ending", SYNTAX_ERROR, err_row, err_col);
+    }
+
+    stack_item *top = stack_pop(st);
+    node *n = top->ast.n;
+    free(top);
+    free_stack(st);
+    return n;
 }
 
 node *parse_call(token_array *arr)
@@ -836,7 +1052,7 @@ node *parse_cond(token_array *arr)
     token *curr = peek_token_array(arr, 0);
     node *cond = create_node(node_expression, curr->row, curr->column);
 
-    cond->as.while_n.condition = parse_binar(arr);
+    cond->as.while_n.condition = parse_expr(arr);
     skip_token(arr);
     return cond;
 }
@@ -848,7 +1064,7 @@ node *parse_while(token_array *arr)
     token *curr = peek_token_array(arr, 0);
     node *wh = create_node(node_while, curr->row, curr->column);
 
-    wh->as.while_n.condition = parse_binar(arr);
+    wh->as.while_n.condition = parse_expr(arr);
 
     get_token_from_array(arr, TOKEN_KW_DO, NULL);
 
@@ -868,7 +1084,7 @@ node *parse_if(token_array *arr)
 
     node *if_else = create_node(node_if, peek_token_array(arr, 0)->row, peek_token_array(arr, 0)->column);
 
-    if_else->as.if_n.condition = parse_binar(arr);
+    if_else->as.if_n.condition = parse_expr(arr);
 
     get_token_from_array(arr, TOKEN_KW_THEN, NULL);
 
