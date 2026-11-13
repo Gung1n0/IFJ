@@ -278,8 +278,6 @@ static void createframe_(void)
     write_instruction("createframe", 0, NULL);
 }
 
-
-
 static void pushframe_(void)
 {
     write_instruction("pushframe", 0, NULL);
@@ -339,9 +337,53 @@ static void exit_(gen_operand exit_code)
 {
     write_instruction("exit", 1, &exit_code);
 }
+    
+static void adds_(void){
+    write_instruction("adds", 0, NULL);
+}
 
-// TODO: implement ADDS, SUBS, MULS, IDIVS, DIVS, EQS, LTS, NOTS, GTS, INT2FLOATS
+static void subs_(void){
+    write_instruction("subs", 0, NULL);
+}
 
+static void muls_(void){
+    write_instruction("muls", 0, NULL);
+}
+
+static void idivs_(void){
+    write_instruction("idivs", 0, NULL);
+}
+
+static void divs_(void){
+    write_instruction("divs", 0, NULL);
+}
+
+static void eqs_(void){
+    write_instruction("eqs", 0, NULL);
+}
+
+static void lts_(void){
+    write_instruction("lts", 0, NULL);
+}
+
+static void nots_(void){
+    write_instruction("nots", 0, NULL);
+}
+
+static void gts_(void){
+    write_instruction("gts", 0, NULL);
+}
+
+static void int2floats_(void){
+    write_instruction("int2floats", 0, NULL);
+}
+
+static void concat_(void){
+    printf("pops GF@$second\n");
+    printf("pops GF@$first\n");
+    printf("concat GF@$result GF@$first GF@$second\n");
+    printf("pushs GF@$result\n");
+}
 
 // getting variable and funtion from node, from sematic table
 
