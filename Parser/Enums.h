@@ -13,7 +13,8 @@ typedef enum
     TOKEN_KW_ELSE,
     TOKEN_KW_IF,
     TOKEN_KW_INT,
-    TOKEN_KW_MAIN, // new
+    TOKEN_KW_DOUBLE,
+    TOKEN_KW_STRING,
     TOKEN_KW_IMPORT,
     TOKEN_KW_UNIT,
     TOKEN_KW_VAL,
