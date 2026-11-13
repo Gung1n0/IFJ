@@ -438,9 +438,13 @@ static void expression_generate(gen_context *ctx, node *expr)
     {
         expression_generate(ctx, expr->as.expression.expression);
     }
+    else if (expr->type == node_id)
+    {
+        identifier_generate(expr);
+    }
     else
     {
-        // internal_err(expr, "neočakávaný uzol na mieste výrazu");
+        internal_err(expr, "unexpected node in expression");
     }
 }
 
@@ -456,9 +460,15 @@ static void set_return_type(gen_context *ctx){
     }
 }
 
+// generates code for declaration of variable with initial value
+static void var_val_generate(gen_context *ctx, node *stmnt){
+    expression_generate(ctx, stmnt->as.val_var.init);
+    pops_(operand_variable(node_variable_get(stmnt)));
+}
+
 static void statement_generate(gen_context *ctx, node *stmnt)
 {
-    if(stmnt->type == node_expression){
+    if(stmnt->type == node_expression || stmnt->type == node_call){
         expression_generate(ctx, stmnt->as.expression.expression);
         trash_();
     }
@@ -472,9 +482,29 @@ static void statement_generate(gen_context *ctx, node *stmnt)
     }
 }
 
-static void block_generate(gen_context *ctx, node *)
+// generates all statements of a block, if / while parts or body of function
+static void block_generate(gen_context *ctx, node *block, bool is_keep_value)
 {
+    int cnt = block->as.block.size;
+    for (int i = 0; i < cnt; i++){
+        
+        node *stmnt = block->as.block.items[i];
+        bool is_last = (i == cnt - 1);
 
+        if(is_keep_value && is_last && stmnt->type == node_expression || stmnt->type == node_call){
+            expression_generate(ctx, stmnt);
+        }
+        else{
+            statement_generate(ctx, stmnt);
+            if(is_last && is_keep_value){
+                pushs_(operand_nil());
+            }
+        }
+    }
+
+    if(cnt == 0 && is_keep_value){
+        pushs_(operand_nil());
+    }
 }
 
 
@@ -492,7 +522,7 @@ static void function_generate(gen_context *ctx, node *fn)
 
 
 
-    // block_generate(ctx, fn->as.function.body, true);
+    block_generate(ctx, fn->as.function.body, true);
     set_return_type(ctx);
 
     // end of function
@@ -511,7 +541,8 @@ void code_generate(struct node *program)
         internal_err(program, "@main not found");
     }
     gen_context ctx = {
-        .program = program};
+        .program = program
+    };
     
         // IFJ header
     printf(".IFJcode26\n");
