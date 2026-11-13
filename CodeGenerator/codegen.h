@@ -6,4 +6,4 @@ struct node;
 
 void code_generate(struct node *program);
 
-#endif 
+#endif

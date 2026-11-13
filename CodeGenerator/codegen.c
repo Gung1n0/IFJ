@@ -259,9 +259,9 @@ static void gts_(void) { write_instruction("gts", 0, NULL); }
 static void int2floats_(void) { write_instruction("int2floats", 0, NULL); }
 
 static void concat_(void) {
-  printf("pops GF@$second\n");
-  printf("pops GF@$first\n");
-  printf("concat GF@$result GF@$first GF@$second\n");
+  printf("pops GF@$right\n");
+  printf("pops GF@$left\n");
+  printf("concat GF@$result GF@$left GF@$right\n");
   printf("pushs GF@$result\n");
 }
 
@@ -282,8 +282,8 @@ static sym_function *node_function_get(node *fn_node) {
 }
 
 // varuables for temporary values in code generation
-static char *gen_global_temp[] = {"$trash",  "$first",      "$second",
-                                  "$third",  "$first_type", "$second_type",
+static char *gen_global_temp[] = {"$trash",  "$left",      "$right",
+                                  "$third",  "$left_type", "$right_type",
                                   "$result", NULL};
 
 static char *gen_library[] = {
@@ -292,10 +292,10 @@ static char *gen_library[] = {
 
     // print function
     "label fn$print",
-    "pops GF@$first",
-    "type GF@$first_type GF@$first",
-    "jumpifeqs fn$print$unit GF@$first_type string@nil",
-    "write GF@$first",
+    "pops GF@$left",
+    "type GF@$left_type GF@$left",
+    "jumpifeqs fn$print$unit GF@$left_type string@nil",
+    "write GF@$left",
     "pushs nil@nil",
     "return",
     "label fn$print$unit",
@@ -333,7 +333,7 @@ static void identifier_generate(node *id) {
 static void binary_generate(gen_context *ctx, node *expr) {
 
   expression_generate(ctx, expr->as.binar.left);
-
+  expression_generate(ctx, expr->as.binar.right);
   operator bin_operator = expr->as.binar.op;
 
   if (bin_operator == OP_ADD) {
@@ -386,6 +386,8 @@ static void expression_generate(gen_context *ctx, node *expr) {
     expression_generate(ctx, expr->as.expression.expression);
   } else if (expr->type == node_id) {
     identifier_generate(expr);
+  } else if (expr->type == node_binar) {
+    binary_generate(ctx, expr);
   } else {
     internal_err(expr, "unexpected node in expression");
   }
@@ -412,6 +414,10 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->type == node_expression || stmnt->type == node_call) {
     expression_generate(ctx, stmnt->as.expression.expression);
     trash_();
+  } else if (stmnt->type == node_val_var) {
+    var_val_generate(ctx, stmnt);
+  } else if (stmnt->type == node_asign) {
+  } else if (stmnt->type == node_return) {
   }
   /*
   else if(){
