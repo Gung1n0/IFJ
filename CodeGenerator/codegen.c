@@ -329,6 +329,21 @@ static void identifier_generate(node *id) {
   pushs_(operand_variable(node_variable_get(id)));
 }
 
+// generates code for unary operations
+static void unary_generate(gen_context *ctx, node *expr) {
+  if (expr->as.unar.op != OP_NEGATE) {
+    internal_err(expr, "unknown unary operator");
+  }
+
+  expression_generate(ctx, expr->as.unar.operand);
+  if (expr->data_type == TYPE_DOUBLE) {
+    pushs_(operand_float(-1.0));
+  } else {
+    pushs_(operand_int(-1));
+  }
+  muls_();
+}
+
 // generates code for binary operations
 static void binary_generate(gen_context *ctx, node *expr) {
 
@@ -391,6 +406,7 @@ static void expression_generate(gen_context *ctx, node *expr) {
   } else {
     internal_err(expr, "unexpected node in expression");
   }
+  // todo :unary , int2float
 }
 
 // ------ generation of statements and blocks
@@ -458,6 +474,7 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
 
 static void function_generate(gen_context *ctx, node *fn) {
   char *name = fn->as.function.name;
+  sym_function *function_entry = node_function_get(fn);
   ctx->function = fn;
 
   // beginning of function
@@ -465,6 +482,24 @@ static void function_generate(gen_context *ctx, node *fn) {
   createframe_();
   pushframe_();
 
+  jump_(operand_function(name, "defvars"));
+  label_(operand_function(name, "body"));
+
+  // error handling of parameters
+  int param_count = fn->as.function.param_count;
+  if (function_entry->locals_count < param_count) {
+    internal_err(fn, "lower number of locals than parameters");
+  }
+  for (int i = 0; i < param_count; i++) {
+    if (!function_entry->locals[i]->is_parameter) {
+      internal_err(fn, "local variable is not parameter");
+    }
+  }
+
+  //  loop to pop params to locals from last to first
+  for (int i = param_count; i >= 0; i--) {
+    pops_(operand_variable(function_entry->locals[i]));
+  }
   block_generate(ctx, fn->as.function.body, true);
   set_return_type(ctx);
 
@@ -472,6 +507,12 @@ static void function_generate(gen_context *ctx, node *fn) {
   label_(operand_function(name, "end"));
   popframe_();
   return_();
+
+  label_(operand_function(name, "defvars"));
+  for (int i = 0; i < function_entry->locals_count; i++) {
+    defvar_(operand_variable(function_entry->locals[i]));
+  }
+  jump_(operand_function(name, "body"));
 }
 
 // generating code from AST
@@ -499,6 +540,4 @@ void code_generate(struct node *program) {
   for (int i = 0; i < program->as.program.size; i++) {
     function_generate(&ctx, program->as.program.items[i]);
   }
-
-  // builtins_gen();
 }
