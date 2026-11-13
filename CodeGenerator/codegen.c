@@ -1,9 +1,13 @@
 // Tomáš Badinský (xbadint00)
 #include <stdio.h>
 #include <stdlib.h>
-#include "codegen.h"
+#include <stdbool.h>
 
+
+#include "codegen.h"
 #include "ast.h"
+#include "symtable.h"
+#include "error.h"
 
 typedef enum
 {
@@ -11,8 +15,11 @@ typedef enum
     OPERAND_STRING,
     OPERAND_NIL,
     OPERAND_FUNCTION,
-    OPERAND_LABEL,
     OPERAND_FLOAT,
+    OPERAND_VARIABLE,
+    OPERAND_BOOL,
+    OPERAND_NUMBERED
+
 } gen_operand_type;
 
 typedef struct
@@ -26,7 +33,7 @@ typedef struct
         {
             char *name;
             int number;
-        } var;
+        } variable;
 
         // int@int_value
         int int_value;
@@ -59,6 +66,7 @@ typedef struct
     } as;
 } gen_operand;
 
+
 typedef struct
 {
     node *program;
@@ -71,13 +79,26 @@ static void internal_err(node *where, char *msg)
 {
     if (where != NULL)
     {
-        // error_exit(INTERNAL_ERROR, "%s, %d %d", msg, where->row, where->column);
+        gen_error(msg, ERR_INTERNAL, where->row, where->column);
     }
-    // error_exit(INTERNAL_ERROR, "%s", msg);
+    gen_error(msg, ERR_INTERNAL, 0, 0);
 }
+
 
 // operand construction functions
 
+// 
+static gen_operand operand_variable(sym_variable *variable){
+    gen_operand operand = {
+        .type = OPERAND_VARIABLE,
+        .as.variable = {
+            variable->name,
+            variable->id
+
+        }
+    };
+    return operand;
+}
 // constant int@value
 static gen_operand operand_int(int value)
 {
@@ -106,14 +127,6 @@ static gen_operand operand_nil(void)
     return operand;
 }
 
-// label for runtime library
-static gen_operand operand_label(char *label)
-{
-    gen_operand operand = {
-        .type = OPERAND_LABEL,
-        .as.label = label};
-    return operand;
-}
 
 // label of user defined function
 static gen_operand operand_function(char *function_name, char *part)
@@ -124,11 +137,34 @@ static gen_operand operand_function(char *function_name, char *part)
     return operand;
 }
 
+// float@value constant
 static gen_operand operand_float(double value)
 {
     gen_operand operand = {
         .type = OPERAND_FLOAT,
         .as.float_value = value};
+    return operand;
+}
+
+static gen_operand operand_bool(bool value)
+{
+    gen_operand operand = {
+        .type = OPERAND_BOOL,
+        .as.bool_value = value
+    };
+    return operand;
+}
+
+static gen_operand operand_numbered(char *type, int number, char *part)
+{
+    gen_operand operand = {
+        .type = OPERAND_NUMBERED,
+        .as.numbered = {
+            type, 
+            number,
+            part
+        }
+    };
     return operand;
 }
 
@@ -180,6 +216,9 @@ static void print_operand(gen_operand operand)
     {
         printf(" int@%d", operand.as.int_value);
     }
+    else if(operand.type == OPERAND_VARIABLE){
+        printf(" LF@%s$%d", operand.as.variable.name, operand.as.variable.number);
+    }
     else if (operand.type == OPERAND_STRING)
     {
         printf(" string@");
@@ -188,10 +227,6 @@ static void print_operand(gen_operand operand)
     else if (operand.type == OPERAND_NIL)
     {
         printf(" nil@nil");
-    }
-    else if (operand.type == OPERAND_LABEL)
-    {
-        printf(" %s", operand.as.label);
     }
     else if (operand.type == OPERAND_FLOAT)
     {
@@ -212,7 +247,7 @@ static void print_operand(gen_operand operand)
     }
 }
 
-// print instruction with operands
+// print instruction with operands, code and number if operands
 static void write_instruction(char *code, int cnt, gen_operand *operands)
 {
     printf("%s", code);
@@ -229,6 +264,8 @@ static void createframe_(void)
 {
     write_instruction("createframe", 0, NULL);
 }
+
+
 
 static void pushframe_(void)
 {
@@ -260,9 +297,9 @@ static void pops_(gen_operand variable)
     write_instruction("pops", 1, &variable);
 }
 
-static void discard_(void)
+static void trash_(void)
 {
-    printf("pops GF@$discard\n");
+    printf("pops GF@$trash\n");
 }
 
 static void label_(gen_operand label)
@@ -290,9 +327,28 @@ static void exit_(gen_operand exit_code)
     write_instruction("exit", 1, &exit_code);
 }
 
+// TODO: implement ADDS, SUBS, MULS, IDIVS, DIVS, EQS, LTS, NOTS, GTS, INT2FLOATS
+
+
+// getting variable and funtion from node, from sematic table
+
+static sym_variable *node_variable_get(node *var_node){
+    if(var_node->var == NULL){
+        internal_err(var_node, "no variable in node");
+    }
+    return var_node->var;
+}
+
+static sym_function *node_function_get(node *fn_node){
+    if(fn_node->func == NULL){
+        internal_err(fn_node, "no function in node");
+    }
+    return fn_node->func;
+}
+
 // varuables for temporary values in code generation
 static char *gen_global_temp[] = {
-    "$discard",
+    "$trash",
     "$first",
     "$second",
     "$third",
@@ -322,46 +378,48 @@ static char *gen_library[] = {
 
 };
 
+
 //  ------- generation of expressions and statements
 static void expression_generate(gen_context *ctx, node *expr);
 
 static void literal_generate(node *lit)
 {
 
-    if (lit->as.lit.type == type_int)
+    if (lit->as.lit.type == TYPE_INT)
     {
         pushs_(operand_int(lit->as.lit.i));
     }
-    else if (lit->as.lit.type == type_double)
+    else if (lit->as.lit.type == TYPE_DOUBLE)
     {
         pushs_(operand_float(lit->as.lit.d));
     }
-    else if (lit->as.lit.type == type_string)
+    else if (lit->as.lit.type == TYPE_STRING)
     {
         pushs_(operand_string(lit->as.lit.s));
     }
-    else if (lit->as.lit.type == type_unit)
+    else if (lit->as.lit.type == TYPE_UNIT)
     {
         pushs_(operand_nil());
     }
     else
     {
-        internal_err(lit, "Unknown literal type");
+       internal_err(lit, "unknown literal type");
     }
 }
 
-static void identifier_generate()
+
+static void identifier_generate(node *id)
 {
+    pushs_(operand_variable(node_variable_get(id)));
 }
 
 static void call_generate(gen_context *ctx, node *call)
 {
-    char *name = call->as.call.name;
     for (int i = 0; i < call->as.call.size; i++)
     {
         expression_generate(ctx, call->as.call.items[i]);
     }
-    call_(operand_function(name, NULL));
+    call_(operand_function(call->as.call.name, NULL));
 }
 
 
@@ -382,7 +440,7 @@ static void expression_generate(gen_context *ctx, node *expr)
     }
     else
     {
-        internal_err(expr, "neočakávaný uzol na mieste výrazu");
+        // internal_err(expr, "neočakávaný uzol na mieste výrazu");
     }
 }
 
@@ -391,16 +449,10 @@ static void expression_generate(gen_context *ctx, node *expr)
 
 // changes value on top of stack to match return type of function
 static void set_return_type(gen_context *ctx){
-    node *fn = ctx->function;
-    if (!fn->as.function.explicit){
-        return;
-    }
-    if(fn->as.function.return_type == type_unit){
-        discard_();
+    
+    if(node_function_get(ctx->function)->return_type == TYPE_UNIT){
+        trash_();
         pushs_(operand_nil());
-    }
-    else{
-        // TODO: convert value on top of stack to match return type of function
     }
 }
 
@@ -408,7 +460,7 @@ static void statement_generate(gen_context *ctx, node *stmnt)
 {
     if(stmnt->type == node_expression){
         expression_generate(ctx, stmnt->as.expression.expression);
-        discard_();
+        trash_();
     }
     /*
     else if(){
@@ -420,7 +472,7 @@ static void statement_generate(gen_context *ctx, node *stmnt)
     }
 }
 
-static void block_generate()
+static void block_generate(gen_context *ctx, node *)
 {
 
 }
@@ -440,7 +492,7 @@ static void function_generate(gen_context *ctx, node *fn)
 
 
 
-    block_generate(ctx, fn->as.function.body, true);
+    // block_generate(ctx, fn->as.function.body, true);
     set_return_type(ctx);
 
     // end of function
@@ -478,7 +530,7 @@ void code_generate(struct node *program)
 
     for (int i = 0; i < program->as.program.size; i++)
     {
-        function_generate(&cg, program->as.program.items[i]);
+        function_generate(&ctx, program->as.program.items[i]);
     }
 
     

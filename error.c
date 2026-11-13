@@ -1,7 +1,8 @@
-#include <stdio.h>
 #include "error.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-void error_msg(error_code code, const char* msg){
-    fprintf(stderr, "Error %d: %s\n", (int)code, msg);
-    exit((int)code);
+void gen_error(const char *message, error_code err, int row, int column) {
+  fprintf(stderr, "%s at row %i column %i\n", message, row, column);
+  exit(err);
 }
