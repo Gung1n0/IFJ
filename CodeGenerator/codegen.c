@@ -230,7 +230,7 @@ static void print_operand(gen_operand operand)
     }
     else if (operand.type == OPERAND_FLOAT)
     {
-        printf(" float@%g", operand.as.float_value);
+        printf(" float@%a", operand.as.float_value);
     }
     else if (operand.type == OPERAND_FUNCTION)
     {
@@ -240,6 +240,19 @@ static void print_operand(gen_operand operand)
         {
             printf("$%s", operand.as.function.part);
         }
+    }
+    else if (operand.type == OPERAND_BOOL){
+        if(operand.as.bool_value){
+            printf(" bool@true");
+        }
+        else{
+            printf(" bool@false");
+        }
+    }
+    else if (operand.type == OPERAND_NUMBERED){
+        
+        printf(" $%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number, operand.as.numbered.part);
+
     }
     else
     {
