@@ -937,28 +937,22 @@ node *parse_block(token_array *arr, bool indent)
     do
     {
         if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
-        {
             nn = parse_val_var(arr, curr);
-        }
         else if (curr->type == TOKEN_KW_RETURN)
-        {
             nn = parse_return(arr);
-        }
+        else if (curr->type == TOKEN_KW_WHILE)
+            nn = parse_while(arr);
+        else if (curr->type == TOKEN_KW_IF)
+            nn = parse_if(arr);
         else if (is_keyword(curr))
-        {
             print_error("Syntax error, unexpected keyword", SYNTAX_ERROR, curr->row, curr->column);
-        }
         else if (curr->type == TOKEN_EOF)
-        {
             print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
-        }
         else if (curr->type == TOKEN_IDENTIFIER)
         {
             token *ahead = peek_token_array(arr, 1);
             if (ahead->type == TOKEN_OP_ASSIGN)
-            {
                 nn = parse_asign(arr);
-            }
             else if (ahead->type == TOKEN_LPAR)
             {
                 nn = create_node(node_expression, curr->row, curr->column);
@@ -975,14 +969,8 @@ node *parse_block(token_array *arr, bool indent)
             nn = create_node(node_expression, curr->row, curr->column);
             nn->as.expression.expression = parse_expr(arr);
         }
-        else if (curr->type == TOKEN_KW_WHILE)
-            nn = parse_while(arr);
-        else if (curr->type == TOKEN_KW_IF)
-            nn = parse_if(arr);
         else
-        {
             print_error("Syntax error", SYNTAX_ERROR, curr->row, curr->column);
-        }
 
         curr = peek_token_array(arr, 0);
 
@@ -1311,6 +1299,8 @@ node *parse_program(token_array *arr)
 
     token *curr = peek_token_array(arr, 0);
     node *np = create_node(node_program, 0, 0);
+    np->as.program.cap = 0;
+    np->as.program.size = 0;
     while (curr->type != TOKEN_EOF)
     {
         node *f = NULL;
@@ -1331,30 +1321,29 @@ node *parse_program(token_array *arr)
         if (f == NULL)
             continue;
 
-        if (np->as.program.cap <= 0)
+        if (np->as.program.size == np->as.program.cap)
         {
-            node **temp = malloc(sizeof(node *) * 1);
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            np->as.program.items = temp;
-            np->as.program.cap = 1;
-            np->as.program.size = 0;
+            if (np->as.program.cap <= 0)
+            {
+                node **temp = malloc(sizeof(node *) * 1);
+                if (temp == NULL)
+                    print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+                np->as.program.items = temp;
+                np->as.program.cap = 1;
+            }
+            else
+            {
+                node **temp = realloc(np->as.program.items, sizeof(node *) * (np->as.program.cap * 2));
+                if (temp == NULL)
+                    print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
+                np->as.program.items = temp;
+                np->as.program.cap = np->as.program.cap * 2;
+            }
             np->as.program.items[np->as.program.size] = f;
-            np->as.program.size++;
-        }
-        else{
-            node **temp = realloc(np->as.program.items, sizeof(node *) * (np->as.program.cap *2));
-            if (temp == NULL)
-                print_error("Malloc failed", INTERNAL_ERROR, 0, 0);
-            np->as.program.items = temp;
-            np->as.program.cap = np->as.program.cap*2;
-            np->as.program.items[np->as.program.size - 1] = f;
             np->as.program.size++;
         }
     }
     return np;
-
-    
 }
 int main(int argc, char const *argv[])
 {
