@@ -129,7 +129,7 @@ static gen_operand operand_numbered(char *type, int number, char *part) {
   return operand;
 }
 
-// find main function in node
+// find @main function in node
 static node *find_main(node *program) {
   for (int i = 0; i < program->as.program.size; i++) {
     node *function = program->as.program.items[i];
@@ -403,10 +403,14 @@ static void expression_generate(gen_context *ctx, node *expr) {
     identifier_generate(expr);
   } else if (expr->type == node_binar) {
     binary_generate(ctx, expr);
+  } else if (expr->type == node_unar) {
+    unary_generate(ctx, expr);
   } else {
     internal_err(expr, "unexpected node in expression");
   }
-  // todo :unary , int2float
+  if (expr->convert_to_double) {
+    int2floats_();
+  }
 }
 
 // ------ generation of statements and blocks
@@ -423,6 +427,12 @@ static void set_return_type(gen_context *ctx) {
 // generates code for declaration of variable with initial value
 static void var_val_generate(gen_context *ctx, node *stmnt) {
   expression_generate(ctx, stmnt->as.val_var.init);
+  pops_(operand_variable(node_variable_get(stmnt)));
+}
+
+// evaluates right side value, it ends on top of stack
+static void assign_generate(gen_context *ctx, node *stmnt) {
+  expression_generate(ctx, stmnt->as.asign.init);
   pops_(operand_variable(node_variable_get(stmnt)));
 }
 
