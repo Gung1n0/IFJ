@@ -436,6 +436,33 @@ static void assign_generate(gen_context *ctx, node *stmnt) {
   pops_(operand_variable(node_variable_get(stmnt)));
 }
 
+// return, value is on top of stack and jumps to end of function
+static void return_generate(gen_context *ctx, node *stmnt) {
+  if (stmnt->as.ret.value != NULL) {
+    expression_generate(ctx, stmnt->as.ret.value);
+  } else {
+    pushs_(operand_nil());
+  }
+
+  return_();
+  jump_(operand_function(ctx->function->as.function.name, "end"));
+}
+
+// while block
+// label while$num$start
+// expression
+// pushs false
+// jumpifeqs while$num$end
+// block
+// jump while$num$start
+// label while$num$end
+static void while_generate() {
+  // TODO
+}
+
+// TODO: if generate
+
+// generates code for a single statement from a block
 static void statement_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->type == node_expression || stmnt->type == node_call) {
     expression_generate(ctx, stmnt->as.expression.expression);
@@ -443,8 +470,11 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
   } else if (stmnt->type == node_val_var) {
     var_val_generate(ctx, stmnt);
   } else if (stmnt->type == node_asign) {
+    asign_generate(ctx, stmnt);
   } else if (stmnt->type == node_return) {
+    return_generate(ctx, stmnt);
   }
+
   /*
   else if(){
       // TODO: implement other statement types (val/var, assignment, return, if,
