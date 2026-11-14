@@ -62,6 +62,7 @@ typedef struct {
 typedef struct {
   node *program;
   node *function;
+  int label_cnt;
 
 } gen_context;
 
@@ -444,9 +445,12 @@ static void return_generate(gen_context *ctx, node *stmnt) {
     pushs_(operand_nil());
   }
 
-  return_();
+  set_return_type(ctx);
   jump_(operand_function(ctx->function->as.function.name, "end"));
 }
+
+
+static void block_generate(gen_context *ctx, node *block, bool is_keep_value);
 
 // while block
 // label while$num$start
@@ -456,13 +460,40 @@ static void return_generate(gen_context *ctx, node *stmnt) {
 // block
 // jump while$num$start
 // label while$num$end
-static void while_generate() {
-  // TODO
+static void while_generate(gen_context *ctx, node *stmnt) {
+
+  int while_label = ctx->label_cnt++;
+
+  label_(operand_numbered("while", while_label, "start"));
+  expression_generate(ctx, stmnt->as.while_n.condition);
+  pushs_(operand_bool(false));
+  jumpifeqs_(operand_numbered("while", while_label, "end"));
+  block_generate(ctx, stmnt->as.while_n.body, false);
+  jump_(operand_numbered("while", while_label, "start"));
+  label_(operand_numbered("while", while_label, "end"));
 }
 
-// TODO: if generate
+// expression
+// pushs false
+// jumpifeqs if$num$else
+// block
+// jump if$num$end
+// label if$num$else
+// block
+// label if$num$end
+static void if_generate(gen_context *ctx, node *stmnt) {
 
-// generates code for a single statement from a block
+  int if_label = ctx->label_cnt++;
+  expression_generate(ctx, stmnt->as.if_n.condition);
+  pushs_(operand_bool(false));
+  jumpifeqs_(operand_numbered("if", if_label, "else"));
+  block_generate(ctx, stmnt->as.if_n.then, false);
+  jump_(operand_numbered("if", if_label, "end"));
+  label_(operand_numbered("if", if_label, "else"));
+  block_generate(ctx, stmnt->as.if_n.else_n, false);
+  label_(operand_numbered("if", if_label, "end"));
+}
+
 static void statement_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->type == node_expression || stmnt->type == node_call) {
     expression_generate(ctx, stmnt->as.expression.expression);
@@ -470,11 +501,14 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
   } else if (stmnt->type == node_val_var) {
     var_val_generate(ctx, stmnt);
   } else if (stmnt->type == node_asign) {
-    asign_generate(ctx, stmnt);
+    assign_generate(ctx, stmnt);
   } else if (stmnt->type == node_return) {
     return_generate(ctx, stmnt);
+  } else if (stmnt->type == node_while) {
+    while_generate(ctx, stmnt);
+  } else if (stmnt->type == node_if) {
+    if_generate(ctx, stmnt);
   }
-
   /*
   else if(){
       // TODO: implement other statement types (val/var, assignment, return, if,
