@@ -283,9 +283,10 @@ static sym_function *node_function_get(node *fn_node) {
 }
 
 // varuables for temporary values in code generation
-static char *gen_global_temp[] = {"$trash",  "$left",      "$right",
-                                  "$third",  "$left_type", "$right_type",
-                                  "$result", NULL};
+static char *gen_global_temp[] = {
+    "$trash",  "$left", "$right", "$third",  "$left_type", "$right_type",
+    "$result", "$flag", "$index", "$length", "$char",      NULL,
+};
 
 static char *gen_library[] = {
 
@@ -304,7 +305,44 @@ static char *gen_library[] = {
     "pushs nil@nil",
     "return",
 
-    NULL
+    // read from input
+    // string
+    "label fn$readLine",
+    "read GF@$result string",
+    "jumpifneq fn$readLine$ok GF@$result nil@nil",
+    "move GF@result string@",
+    "label fn$readLine$ok",
+    "pushs GF@$result",
+    "return",
+
+    // int
+    "label fn$readInt",
+    "read GF@$result int",
+    "jumpifneq fn$readInt$ok GF@$result nil@nil",
+    "move GF@result int@",
+    "label fn$readInt$ok",
+    "pushs GF@$result",
+    "return",
+
+    // double
+    "label fn$readDouble",
+    "read GF@$result float",
+    "jumpifneq fn$readDouble$ok GF@$result nil@nil",
+    "move GF@result float@",
+    "label fn$readDouble$ok",
+    "pushs GF@$result",
+    "return",
+
+    // convert to int
+    "label fn$toInt",
+    "pops GF@$left",
+    "float2int GF@$result GF@$left",
+    "pushs GF@result",
+    "return",
+
+    // TODO: to string, built-in functions
+
+    NULL,
 
 };
 
