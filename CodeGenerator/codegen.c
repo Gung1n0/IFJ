@@ -449,7 +449,6 @@ static void return_generate(gen_context *ctx, node *stmnt) {
   jump_(operand_function(ctx->function->as.function.name, "end"));
 }
 
-
 static void block_generate(gen_context *ctx, node *block, bool is_keep_value);
 
 // while block
@@ -490,7 +489,9 @@ static void if_generate(gen_context *ctx, node *stmnt) {
   block_generate(ctx, stmnt->as.if_n.then, false);
   jump_(operand_numbered("if", if_label, "end"));
   label_(operand_numbered("if", if_label, "else"));
-  block_generate(ctx, stmnt->as.if_n.else_n, false);
+  if (stmnt->as.if_n.else_n != NULL) {
+    block_generate(ctx, stmnt->as.if_n.else_n, false);
+  }
   label_(operand_numbered("if", if_label, "end"));
 }
 
@@ -508,14 +509,7 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
     while_generate(ctx, stmnt);
   } else if (stmnt->type == node_if) {
     if_generate(ctx, stmnt);
-  }
-  /*
-  else if(){
-      // TODO: implement other statement types (val/var, assignment, return, if,
-  while)
-  }
-  */
-  else {
+  } else {
     internal_err(stmnt, "unexpected node in statement");
   }
 }
@@ -587,6 +581,8 @@ static void function_generate(gen_context *ctx, node *fn) {
     defvar_(operand_variable(function_entry->locals[i]));
   }
   jump_(operand_function(name, "body"));
+
+  ctx->function = NULL;
 }
 
 // generating code from AST
