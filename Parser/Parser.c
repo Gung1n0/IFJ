@@ -1339,9 +1339,9 @@ node *parse_program(token_array *arr)
                 np->as.program.items = temp;
                 np->as.program.cap = np->as.program.cap * 2;
             }
-            np->as.program.items[np->as.program.size] = f;
-            np->as.program.size++;
         }
+        np->as.program.items[np->as.program.size] = f;
+        np->as.program.size++;
     }
     return np;
 }
