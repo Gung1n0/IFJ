@@ -74,7 +74,7 @@ static int g_run = 0, g_fail = 0;
 /* rucne zostavene tokeny */
 #define T(ty, d) {(ty), (char *)(d), 1, 1}
 #define ARR(name, ...)                \
-    token name##_t[] = {__VA_ARGS__}; \
+    Token name##_t[] = {__VA_ARGS__}; \
     token_array name = {name##_t, (int)(sizeof(name##_t) / sizeof(token)), 0}
 
 /* ---------- mini lexer len pre testy (EOL/IND/DED ako ocakava parser) ---------- */
@@ -100,7 +100,7 @@ static char *dup_or_null(const char *s) { return s ? strduplicate(s) : NULL; }
 static token_array lex(const char *src)
 {
     size_t cap = strlen(src) * 2 + 16;
-    token *t = calloc(cap, sizeof(token));
+    Token *t = calloc(cap, sizeof(Token));
     int n = 0, row = 1, top = 0, ind[64] = {0};
     const char *p = src, *ls = src;
     while (*p)
@@ -572,12 +572,12 @@ static void test_is_keyword(void)
                       TOKEN_EOF, TOKEN_IND, TOKEN_DED, TOKEN_AT};
     for (size_t i = 0; i < sizeof yes / sizeof *yes; i++)
     {
-        token t = {yes[i], NULL, 1, 1};
+        Token t = {yes[i], NULL, 1, 1};
         CHECK(is_keyword(&t));
     }
     for (size_t i = 0; i < sizeof no / sizeof *no; i++)
     {
-        token t = {no[i], NULL, 1, 1};
+        Token t = {no[i], NULL, 1, 1};
         CHECK(!is_keyword(&t));
     }
 #ifdef TEST_NULL
@@ -614,7 +614,7 @@ static void test_skip_peek_get(void)
     CHECK(peek_token_array(&a, 2) == &a_t[2]);
     EXPECT_EXIT(2, { peek_token_array(&a, 5); });
 
-    token *g = get_token_from_array(&a, TOKEN_IDENTIFIER, NULL);
+    Token *g = get_token_from_array(&a, TOKEN_IDENTIFIER, NULL);
     CHECK(g == &a_t[0] && a.pos == 1);
     g = get_token_from_array(&a, TOKEN_IDENTIFIER, "b");
     CHECK(g == &a_t[1] && a.pos == 2);
@@ -698,7 +698,7 @@ static void test_parse_type_operator(void)
         {TOKEN_KW_INT, type_int}, {TOKEN_KW_UNIT, type_unit}, {TOKEN_KW_DOUBLE, type_double}, {TOKEN_KW_STRING, type_string}, {TOKEN_IDENTIFIER, type_none}, {TOKEN_INT_LITERAL, type_none}, {TOKEN_STRING_LITERAL, type_none}, {TOKEN_EOL, type_none}, {TOKEN_KW_DEF, type_none}};
     for (size_t i = 0; i < sizeof ty / sizeof *ty; i++)
     {
-        token t = {ty[i].t, NULL, 1, 1};
+        Token t = {ty[i].t, NULL, 1, 1};
         CHECK(parse_type(&t) == ty[i].d);
     }
     struct
@@ -709,7 +709,7 @@ static void test_parse_type_operator(void)
         {TOKEN_OP_PLUS, add}, {TOKEN_OP_MINUS, subtract}, {TOKEN_OP_MUL, multiply}, {TOKEN_OP_DIV, divide}, {TOKEN_OP_EQ, equal}, {TOKEN_OP_NEQ, not_equal}, {TOKEN_OP_LESS, lesser}, {TOKEN_OP_MORE, greater}, {TOKEN_OP_LESS_EQ, lesser_or_equal}, {TOKEN_OP_MORE_EQ, greater_or_equal}, {TOKEN_OP_ASSIGN, none}, {TOKEN_LPAR, none}, {TOKEN_IDENTIFIER, none}, {TOKEN_EOF, none}};
     for (size_t i = 0; i < sizeof op / sizeof *op; i++)
     {
-        token t = {op[i].t, NULL, 1, 1};
+        Token t = {op[i].t, NULL, 1, 1};
         CHECK(parse_operator(&t) == op[i].o);
     }
 }
@@ -784,7 +784,7 @@ static void test_top_terminal_idx_to_op(void)
 
 static int idx(TokenType ty, const char *d, int depth, int prev)
 {
-    token t[2] = {{ty, (char *)d, 1, 1}, {TOKEN_EOF, NULL, 1, 2}};
+    Token t[2] = {{ty, (char *)d, 1, 1}, {TOKEN_EOF, NULL, 1, 2}};
     token_array a = {t, 2, 0};
     return token_to_index(&a, depth, prev);
 }
@@ -832,7 +832,7 @@ static void test_token_to_index(void)
 
 static node *term_of(TokenType ty, const char *d)
 {
-    token t[2] = {{ty, (char *)d, 1, 1}, {TOKEN_EOF, NULL, 1, 2}};
+    Token t[2] = {{ty, (char *)d, 1, 1}, {TOKEN_EOF, NULL, 1, 2}};
     token_array a = {t, 2, 0};
     return parse_term(&a);
 }
@@ -876,7 +876,7 @@ static void test_parse_term(void)
 
 static void test_reduce_stack(void)
 {
-    token tk = {TOKEN_EOL, NULL, 1, 1};
+    Token tk = {TOKEN_EOL, NULL, 1, 1};
     int ops[] = {0, 1, 2, 3, 9, 10, 11, 12, 13, 14};
     for (size_t i = 0; i < sizeof ops / sizeof *ops; i++)
     {

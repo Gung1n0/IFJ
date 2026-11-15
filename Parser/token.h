@@ -8,11 +8,11 @@ typedef struct
     char *data;
     int row;
     int column;
-} token;
+} Token;
 
 typedef struct
 {
-    token *token_data;
+    Token *token_data;
     int size;
     int pos;
 } token_array;

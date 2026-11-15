@@ -18,7 +18,7 @@ char *strduplicate(const char *s)
     return p;
 }
 
-bool is_keyword(token *t)
+bool is_keyword(Token *t)
 {
     return t->type == TOKEN_KW_DEF ||
            t->type == TOKEN_KW_DO ||
@@ -135,7 +135,7 @@ void destruct_token_array(token_array *t)
 }
 
 // destroy token
-void destruct_token(token *t)
+void destruct_token(Token *t)
 {
     free(t->data);
     t->data = NULL;
@@ -149,9 +149,9 @@ void skip_token(token_array *arr)
 }
 
 // checks and gets current token from array
-token *get_token_from_array(token_array *arr, TokenType type, char *data)
+Token *get_token_from_array(token_array *arr, TokenType type, char *data)
 {
-    token *curr = &arr->token_data[arr->pos];
+    Token *curr = &arr->token_data[arr->pos];
 
     bool data_matches = true;
     if (data != NULL)
@@ -175,7 +175,7 @@ token *get_token_from_array(token_array *arr, TokenType type, char *data)
 }
 
 // peek at first token
-token *peek_token_array(token_array *arr, int offset)
+Token *peek_token_array(token_array *arr, int offset)
 {
     if (arr->size > 0 && arr->pos + offset < arr->size)
     {
@@ -189,7 +189,7 @@ void parse_prologue(token_array *arr)
 {
     if (arr->size > 0)
     {
-        token *curr = peek_token_array(arr, 0);
+        Token *curr = peek_token_array(arr, 0);
         // go trough tokens until i get prologue, or syntax error
 
         while (curr->type != TOKEN_KW_IMPORT)
@@ -329,7 +329,7 @@ void free_node(node *n)
     free(n);
 }
 
-data_types parse_type(token *curr)
+data_types parse_type(Token *curr)
 {
     switch (curr->type)
     {
@@ -346,7 +346,7 @@ data_types parse_type(token *curr)
     }
 }
 
-operator parse_operator(token *curr)
+operator parse_operator(Token *curr)
 {
     switch (curr->type)
     {
@@ -451,9 +451,9 @@ void stack_add(stack_item *si, stack *s)
 
 int token_to_index(token_array *arr, int depth, int prev_index)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
 
-    token *next = NULL;
+    Token *next = NULL;
     if (arr->pos + 1 < arr->size)
         next = peek_token_array(arr, 1);
 
@@ -502,7 +502,7 @@ int token_to_index(token_array *arr, int depth, int prev_index)
 
 node *parse_term(token_array *arr)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     if (curr->data == NULL)
         print_error("Syntax error, expected expression", SYNTAX_ERROR, curr->row, curr->column);
 
@@ -592,7 +592,7 @@ operator idx_to_op(int idx)
     }
 }
 
-void reduce_stack(stack *st, token *curr)
+void reduce_stack(stack *st, Token *curr)
 {
     node *nn = NULL;
 
@@ -675,7 +675,7 @@ node *parse_expr(token_array *arr)
     {
         int row = top_terminal(st);
 
-        token *curr = peek_token_array(arr, 0);
+        Token *curr = peek_token_array(arr, 0);
         int column = token_to_index(arr, depth, prev_index);
 
         actions ac = table[row][column];
@@ -748,7 +748,7 @@ node *parse_expr(token_array *arr)
         }
     }
 
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
 
     if (st->size != 2 || st->items[1]->type != node_item)
     {
@@ -772,7 +772,7 @@ node *parse_expr(token_array *arr)
 
 node *parse_call(token_array *arr)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     node *call = create_node(node_call, curr->row, curr->column);
 
     if (curr->data == NULL)
@@ -836,7 +836,7 @@ node *parse_call(token_array *arr)
 
 node *parse_return(token_array *arr)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
 
     node *ret = create_node(node_return, curr->row, curr->column);
 
@@ -857,7 +857,7 @@ node *parse_return(token_array *arr)
     return ret;
 }
 
-node *parse_val_var(token_array *arr, token *curr)
+node *parse_val_var(token_array *arr, Token *curr)
 {
     node *vl = create_node(node_val_var, curr->row, curr->column);
     if (curr->type != TOKEN_KW_VAL)
@@ -910,7 +910,7 @@ node *parse_val_var(token_array *arr, token *curr)
 
 node *parse_asign(token_array *arr)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     node *as = create_node(node_asign, curr->row, curr->column);
 
     if (curr->data == NULL)
@@ -931,7 +931,7 @@ node *parse_asign(token_array *arr)
 
 node *parse_block(token_array *arr, bool indent)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     node *bl = create_node(node_block, curr->row, curr->column);
     node *nn = NULL;
     do
@@ -950,7 +950,7 @@ node *parse_block(token_array *arr, bool indent)
             print_error("Syntax error, expected dedent", SYNTAX_ERROR, curr->row, curr->column);
         else if (curr->type == TOKEN_IDENTIFIER)
         {
-            token *ahead = peek_token_array(arr, 1);
+            Token *ahead = peek_token_array(arr, 1);
             if (ahead->type == TOKEN_OP_ASSIGN)
                 nn = parse_asign(arr);
             else if (ahead->type == TOKEN_LPAR)
@@ -1036,7 +1036,7 @@ node *parse_block(token_array *arr, bool indent)
 node *parse_function_body(token_array *arr)
 {
     node *bl = NULL;
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     bool indent = false;
 
     if (curr->type == TOKEN_IND)
@@ -1057,7 +1057,7 @@ node *parse_while(token_array *arr)
 {
     get_token_from_array(arr, TOKEN_KW_WHILE, NULL);
 
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     node *wh = create_node(node_while, curr->row, curr->column);
 
     wh->as.while_n.condition = parse_expr(arr);
@@ -1098,14 +1098,14 @@ node *parse_if(token_array *arr)
     return if_else;
 }
 
-bool check_bracket(token *curr)
+bool check_bracket(Token *curr)
 {
     return curr->type != TOKEN_RPAR;
 }
 
 void parse_params(token_array *arr, node *n)
 {
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
 
     while (check_bracket(curr))
     {
@@ -1181,7 +1181,7 @@ void parse_function_header(token_array *arr, node *n)
     data_types type;
     bool explicit = false;
 
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     if (curr->type != TOKEN_IDENTIFIER || curr->data == NULL)
         print_error("Syntax error, expected identifier", SYNTAX_ERROR, arr->token_data[arr->pos].row, arr->token_data[arr->pos].column);
 
@@ -1237,7 +1237,7 @@ void parse_function_header(token_array *arr, node *n)
 }
 
 // parses def function
-node *parse_def(token_array *arr, token *curr)
+node *parse_def(token_array *arr, Token *curr)
 {
     node *n = create_node(node_function, curr->row, curr->column);
 
@@ -1253,7 +1253,7 @@ node *parse_def(token_array *arr, token *curr)
 }
 
 // parses @main def function
-node *parse_main(token_array *arr, token *curr)
+node *parse_main(token_array *arr, Token *curr)
 {
     if (curr->type == TOKEN_AT)
     {
@@ -1297,7 +1297,7 @@ node *parse_program(token_array *arr)
 {
     parse_prologue(arr);
 
-    token *curr = peek_token_array(arr, 0);
+    Token *curr = peek_token_array(arr, 0);
     node *np = create_node(node_program, 0, 0);
     np->as.program.cap = 0;
     np->as.program.size = 0;
