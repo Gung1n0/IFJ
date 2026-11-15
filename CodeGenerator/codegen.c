@@ -79,9 +79,7 @@ static void internal_err(node *where, char *msg) {
 //
 static gen_operand operand_variable(sym_variable *variable) {
   gen_operand operand = {.type = OPERAND_VARIABLE,
-                         .as.variable = {variable->name, variable->id
-
-                         }};
+                         .as.variable = {variable->name, variable->id}};
   return operand;
 }
 // constant int@value
@@ -311,7 +309,7 @@ static char *gen_library[] = {
     "label fn$readLine",
     "read GF@$result string",
     "jumpifneq fn$readLine$ok GF@$result nil@nil",
-    "move GF@result string@",
+    "move GF@$result string@",
     "label fn$readLine$ok",
     "pushs GF@$result",
     "return",
@@ -320,7 +318,7 @@ static char *gen_library[] = {
     "label fn$readInt",
     "read GF@$result int",
     "jumpifneq fn$readInt$ok GF@$result nil@nil",
-    "move GF@result int@0",
+    "move GF@$result int@0",
     "label fn$readInt$ok",
     "pushs GF@$result",
     "return",
@@ -329,7 +327,7 @@ static char *gen_library[] = {
     "label fn$readDouble",
     "read GF@$result float",
     "jumpifneq fn$readDouble$ok GF@$result nil@nil",
-    "move GF@result float@0.0",
+    "move GF@$result float@0x0p+0",
     "label fn$readDouble$ok",
     "pushs GF@$result",
     "return",
@@ -338,7 +336,7 @@ static char *gen_library[] = {
     "label fn$toInt",
     "pops GF@$left",
     "float2int GF@$result GF@$left",
-    "pushs GF@result",
+    "pushs GF@$result",
     "return",
 
     // convert to string - unit, int, float
@@ -392,7 +390,35 @@ static char *gen_library[] = {
     "label fn$subStr$error",
     "exit int@40",
 
-    // TODO: built-in functions
+    // length of string
+    "label fn$strLength",
+    "pops GF@$left",
+    "strlen GF@$result GF@$left",
+    "pushs GF@$result",
+    "return",
+
+    // chr
+    "label fn$chr",
+    "pops GF@$left",
+    "int2char GF@$result GF@$left",
+    "pushs GF@$result",
+    "return",
+
+    // ord
+    "label fn$ord",
+    "pops GF@$right",
+    "pops GF@$left",
+    "strlen GF@$length GF@$left",
+    "lt GF@$flag GF@$right int@0",
+    "jumpifeq fn$ord$invalid GF@$flag bool@true",
+    "lt GF@$flag GF@$right GF@$length",
+    "jumpifeq fn$ord$invalid GF@$flag bool@false",
+    "stri2int GF@$result GF@$left GF@$right",
+    "pushs GF@$result",
+    "return",
+    "label fn$ord$invalid",
+    "pushs int@-1",
+    "return",
 
     NULL,
 
@@ -442,12 +468,16 @@ static void binary_generate(gen_context *ctx, node *expr) {
   expression_generate(ctx, expr->as.binar.right);
   operator bin_operator = expr->as.binar.op;
 
-  if (bin_operator == OP_ADD) {
+  if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
+    concat_();
+  } else if (bin_operator == OP_ADD) {
     adds_();
   } else if (bin_operator == OP_SUBTRACT) {
     subs_();
   } else if (bin_operator == OP_MULTIPLY) {
     muls_();
+  } else if (bin_operator == OP_DIVIDE && expr->data_type == TYPE_INT) {
+    idivs_();
   } else if (bin_operator == OP_DIVIDE) {
     divs_();
   } else if (bin_operator == OP_EQUAL) {
@@ -465,10 +495,6 @@ static void binary_generate(gen_context *ctx, node *expr) {
   } else if (bin_operator == OP_GREATER_OR_EQUAL) {
     lts_();
     nots_();
-  } else if (bin_operator == OP_DIVIDE && expr->data_type == TYPE_INT) {
-    idivs_();
-  } else if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
-    concat_();
   } else {
     internal_err(expr, "unknown operator");
   }
@@ -612,8 +638,8 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
     node *stmnt = block->as.block.items[i];
     bool is_last = (i == cnt - 1);
 
-    if (is_keep_value && is_last && stmnt->type == node_expression ||
-        stmnt->type == node_call) {
+    if (is_keep_value && is_last && (stmnt->type == node_expression ||
+        stmnt->type == node_call)) {
       expression_generate(ctx, stmnt);
     } else {
       statement_generate(ctx, stmnt);
@@ -656,7 +682,7 @@ static void function_generate(gen_context *ctx, node *fn) {
   }
 
   //  loop to pop params to locals from last to first
-  for (int i = param_count; i >= 0; i--) {
+  for (int i = param_count - 1; i >= 0; i--) {
     pops_(operand_variable(function_entry->locals[i]));
   }
   block_generate(ctx, fn->as.function.body, true);
@@ -666,12 +692,6 @@ static void function_generate(gen_context *ctx, node *fn) {
   label_(operand_function(name, "end"));
   popframe_();
   return_();
-
-  label_(operand_function(name, "defvars"));
-  for (int i = 0; i < function_entry->locals_count; i++) {
-    defvar_(operand_variable(function_entry->locals[i]));
-  }
-  jump_(operand_function(name, "body"));
 
   ctx->function = NULL;
 }
