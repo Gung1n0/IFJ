@@ -163,31 +163,31 @@ static void print_string_literal(char *str) {
 static void print_operand(gen_operand operand) {
 
   if (operand.type == OPERAND_INT) {
-    printf(" int@%d", operand.as.int_value);
+    printf("int@%d", operand.as.int_value);
   } else if (operand.type == OPERAND_VARIABLE) {
-    printf(" LF@%s$%d", operand.as.variable.name, operand.as.variable.number);
+    printf("LF@%s$%d", operand.as.variable.name, operand.as.variable.number);
   } else if (operand.type == OPERAND_STRING) {
-    printf(" string@");
+    printf("string@");
     print_string_literal(operand.as.string_value);
   } else if (operand.type == OPERAND_NIL) {
-    printf(" nil@nil");
+    printf("nil@nil");
   } else if (operand.type == OPERAND_FLOAT) {
-    printf(" float@%a", operand.as.float_value);
+    printf("float@%a", operand.as.float_value);
   } else if (operand.type == OPERAND_FUNCTION) {
-    printf(" fn$%s", operand.as.function.name);
+    printf("fn$%s", operand.as.function.name);
 
     if (operand.as.function.part != NULL) {
       printf("$%s", operand.as.function.part);
     }
   } else if (operand.type == OPERAND_BOOL) {
     if (operand.as.bool_value) {
-      printf(" bool@true");
+      printf("bool@true");
     } else {
-      printf(" bool@false");
+      printf("bool@false");
     }
   } else if (operand.type == OPERAND_NUMBERED) {
 
-    printf(" $%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number,
+    printf("$%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number,
            operand.as.numbered.part);
   } else {
     internal_err(NULL, "Unknown operand type");
@@ -198,6 +198,7 @@ static void print_operand(gen_operand operand) {
 static void write_instruction(char *code, int cnt, gen_operand *operands) {
   printf("%s", code);
   for (int i = 0; i < cnt; i++) {
+    putchar(' ');
     print_operand(operands[i]);
   }
   putchar('\n');
@@ -535,7 +536,7 @@ static void if_generate(gen_context *ctx, node *stmnt) {
 
 static void statement_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->type == node_expression || stmnt->type == node_call) {
-    expression_generate(ctx, stmnt->as.expression.expression);
+    expression_generate(ctx, stmnt);
     trash_();
   } else if (stmnt->type == node_val_var) {
     var_val_generate(ctx, stmnt);
@@ -588,8 +589,9 @@ static void function_generate(gen_context *ctx, node *fn) {
   createframe_();
   pushframe_();
 
-  jump_(operand_function(name, "defvars"));
-  label_(operand_function(name, "body"));
+  for (int i = 0; i < function_entry->locals_count; i++) {
+    defvar_(operand_variable(function_entry->locals[i]));
+  }
 
   // error handling of parameters
   int param_count = fn->as.function.param_count;
