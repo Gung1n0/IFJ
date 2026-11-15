@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../Common/common_functions.h"
 #include "builtins.h"
+#include "common_functions.h"
 #include "hashtable.h"
 #include "symtable.h"
 

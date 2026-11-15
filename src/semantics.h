@@ -7,7 +7,7 @@
 #ifndef SEMANTICS_H
 #define SEMANTICS_H
 
-#include "../Parser/ast.h"
+#include "ast.h"
 #include "symtable.h"
 
 /// @brief Analyzes the ast tree using 2 passes, one pass for analyzing all

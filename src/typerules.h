@@ -7,7 +7,7 @@
 #ifndef TYPERULES_H
 #define TYPERULES_H
 
-#include "../Common/enums.h"
+#include "enums.h"
 #include "symtable.h"
 #include <stdbool.h>
 

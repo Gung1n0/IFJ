@@ -9,7 +9,7 @@
 #ifndef COMMON_FUNCTIONS_H
 #define COMMON_FUNCTIONS_H
 
-#include "../Parser/ast.h"
+#include "ast.h"
 #include "enums.h"
 #include <stdlib.h>
 #include <string.h>
@@ -68,16 +68,6 @@ static inline const char *error_to_message(error_code err) {
   default:
     return EMPTY_ERROR_MESSAGE;
   }
-}
-
-/// @brief Prints error message, points to the fault node and exits with a
-/// error_code
-/// @param err Error code
-/// @param n Node to report on
-static inline void sem_error(error_code err, node *n) {
-  const char *message = error_to_message(err);
-  fprintf(stderr, "%s at row %i column %i\n", message, n->row, n->column);
-  exit(err);
 }
 
 #endif

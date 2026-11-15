@@ -6,7 +6,7 @@
  */
 
 #include "typerules.h"
-#include "../Common/enums.h"
+#include "enums.h"
 
 /// @brief Checks, if 2 data types are numeric (INT / DOUBLE)
 /// @param type1 Operand type 1 to check

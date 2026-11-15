@@ -6,7 +6,7 @@
  */
 
 #include "semantics.h"
-#include "../Common/common_functions.h"
+#include "common_functions.h"
 #include "symtable.h"
 #include "typerules.h"
 
@@ -35,6 +35,16 @@ static analysis_result analyze_statement(sem_context *c, node *n);
 static analysis_result analyze_block(sem_context *c, node *n);
 static data_types analyze_call(sem_context *c, node *n);
 static void analyze_function_entry(sym_table *t, sym_function *f);
+
+/// @brief Prints error message, points to the fault node and exits with a
+/// error_code
+/// @param err Error code
+/// @param n Node to report on
+static void sem_error(error_code err, node *n) {
+  const char *message = error_to_message(err);
+  fprintf(stderr, "%s at row %i column %i\n", message, n->row, n->column);
+  exit(err);
+}
 
 /// @brief Helper function, to check if a node is a function node
 /// @param n Node to check
