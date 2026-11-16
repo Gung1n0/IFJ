@@ -1,7 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include "Enums.h"
+#include "enums.h"
 typedef struct
 {
     TokenType type;

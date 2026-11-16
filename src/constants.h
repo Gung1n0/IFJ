@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#include "Enums.h"
+#include "enums.h"
 
 typedef enum{
  LEXICAL_ERROR = 1,

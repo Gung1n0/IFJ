@@ -4,8 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include "Constants.h"
+#include "constants.h"
 #include "token.h"
 
 typedef struct
@@ -23,6 +22,11 @@ struct node
     node_type type;
     int row;
     int column;
+
+     data_types data_type;
+  bool convert_to_double;
+  struct sym_variable *var;
+  struct sym_function *func;
     union
     {
         struct
