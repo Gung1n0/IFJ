@@ -2,19 +2,6 @@
 #define CONSTANTS_H
 
 #include "enums.h"
-
-typedef enum{
- LEXICAL_ERROR = 1,
- SYNTAX_ERROR = 2,
- UNDEFINED = 3,
-UNAUTHORIZED = 4,
-INVALID_ARGUMENT = 5,
-INVALID_TYPE = 6,
-IMMUTABLE_WRITE = 7,
-SEMANTIC_ERROR = 10,
-INTERNAL_ERROR = 99
-} error_code;
-
 //                                  +     -      *        /      !        (       )      $      i       <      <=      >    >=      ==     !=
 const actions table[15][15] = {{reduce, reduce, shift,  shift,  shift,  shift, reduce, reduce, shift, reduce,reduce,reduce,reduce,reduce,reduce}, // +
                                {reduce, reduce, shift,  shift,  shift,  shift, reduce, reduce, shift, reduce,reduce,reduce,reduce,reduce,reduce}, // -
