@@ -1,0 +1,11 @@
+// TEST: String argument for Int parameter
+// SPEC: 2.3, 4
+// EXPECT: compile=5 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(a: Int): Int = a
+
+@main def main(): Unit =
+  val r = f("s")
+  print(r)

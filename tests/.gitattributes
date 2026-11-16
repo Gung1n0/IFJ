@@ -1,0 +1,3 @@
+# keep test files byte-exact (expected outputs contain \r, \t)
+e2e/** -text
+*.sh text eol=lf

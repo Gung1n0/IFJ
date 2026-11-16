@@ -1,0 +1,9 @@
+// TEST: undefined function in initialization
+// SPEC: 2.3
+// EXPECT: compile=3 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = bar()
+  print(a)

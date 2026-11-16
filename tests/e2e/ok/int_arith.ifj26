@@ -1,0 +1,43 @@
+// TEST: Int arithmetic, priorities, left associativity, division toward zero, unary minus
+// SPEC: 1.1, 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 2 + 3 * 4
+  print(a)
+  print("\n")
+  val b = (2 + 3) * 4
+  print(b)
+  print("\n")
+  val c = 10 - 3 - 2
+  print(c)
+  print("\n")
+  val d = 100 / 10 / 5
+  print(d)
+  print("\n")
+  val e = 7 / 2
+  print(e)
+  print("\n")
+  val f = -7 / 2
+  print(f)
+  print("\n")
+  val g = 7 / -2
+  print(g)
+  print("\n")
+  val h = -2 * 3
+  print(h)
+  print("\n")
+  val k = 2 - -3
+  print(k)
+  print("\n")
+  val m = ((1 + 2) * (3 + 4)) - (10 / 3)
+  print(m)
+  print("\n")
+  val big = 1_000_000
+  print(big)
+  print("\n")
+  val zero = 0
+  print(zero)
+  print("\n")

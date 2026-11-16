@@ -1,0 +1,11 @@
+// TEST: indented line after a one-line function
+// SPEC: 1.2
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(): Int = 1
+  val x = 2
+
+@main def main(): Unit =
+  print("x")

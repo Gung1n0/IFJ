@@ -1,0 +1,47 @@
+// TEST: concatenation and lexicographic comparison of strings
+// SPEC: 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: test also uses !=; if it fails on a line with !=, see ok/operator_not_equal
+import ifj26.*
+
+@main def main(): Unit =
+  val a = "abc"
+  val b = "abd"
+  val c = a + b
+  print(c)
+  print("\n")
+  if a < b then
+    print("lt\n")
+  else
+    print("ge\n")
+  if c > a then
+    print("gt\n")
+  else
+    print("le\n")
+  if a == "abc" then
+    print("eq\n")
+  else
+    print("ne\n")
+  if a != b then
+    print("ne\n")
+  else
+    print("eq\n")
+  val e = "" + ""
+  if e < a then
+    print("empty-first\n")
+  else
+    print("bad\n")
+  val f = "B"
+  if f < a then
+    print("upper-first\n")
+  else
+    print("bad\n")
+  if a <= "abc" then
+    print("le-ok\n")
+  else
+    print("bad\n")
+  if b >= a then
+    print("ge-ok\n")
+  else
+    print("bad\n")

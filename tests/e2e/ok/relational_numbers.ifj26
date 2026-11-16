@@ -1,0 +1,69 @@
+// TEST: all relational operators on Int, Double and mixed operands
+// SPEC: 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: test also uses !=; if it fails on a line with !=, see ok/operator_not_equal
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 3
+  val b = 5
+  val x = 2.5
+  val y = 2.5
+  if a < b then
+    print("T")
+  else
+    print("F")
+  if a > b then
+    print("T")
+  else
+    print("F")
+  if a <= 3 then
+    print("T")
+  else
+    print("F")
+  if b >= 6 then
+    print("T")
+  else
+    print("F")
+  if a == 3 then
+    print("T")
+  else
+    print("F")
+  if a != 3 then
+    print("T")
+  else
+    print("F")
+  if x <= y then
+    print("T")
+  else
+    print("F")
+  if x >= y then
+    print("T")
+  else
+    print("F")
+  if x < y then
+    print("T")
+  else
+    print("F")
+  if x == y then
+    print("T")
+  else
+    print("F")
+  if a < x then
+    print("T")
+  else
+    print("F")
+  if x < a then
+    print("T")
+  else
+    print("F")
+  if b > x then
+    print("T")
+  else
+    print("F")
+  if x != b then
+    print("T")
+  else
+    print("F")
+  print("\n")

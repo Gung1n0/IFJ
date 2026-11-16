@@ -1,0 +1,12 @@
+// TEST: subStr with both start and end negative -> 40
+// SPEC: 4
+// EXPECT: compile=0 run=40
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: subStr checks (4): start<0, end<0, start>end, start>=strLength, end>strLength -> exit 40
+import ifj26.*
+
+@main def main(): Unit =
+  val m = -2
+  val n = -1
+  val s = subStr("abc", m, n)
+  print(s)

@@ -1,0 +1,10 @@
+// TEST: two parameters with the same name
+// SPEC: 2.3
+// EXPECT: compile=4 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(a: Int, a: Int): Int = a
+
+@main def main(): Unit =
+  print("x")

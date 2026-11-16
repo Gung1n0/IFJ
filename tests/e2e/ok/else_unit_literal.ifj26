@@ -1,0 +1,14 @@
+// TEST: else branch with only () (example from the specification)
+// SPEC: 2.1
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: Unit literal () must be accepted by the parser as a term (specification 1.1, 2.1)
+import ifj26.*
+
+@main def main(): Unit =
+  val x = 7
+  if x < 5 then
+    print("prilis malo\n")
+  else
+    ()
+  print("done\n")

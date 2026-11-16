@@ -1,0 +1,16 @@
+// TEST: function with 5 parameters of different types
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(a: Int, b: Double, c: String, d: Int, e: String): String =
+  val x = a + d
+  val xs = toStr(x)
+  val bs = toStr(b)
+  c + xs + bs + e
+
+@main def main(): Unit =
+  val r = f(1, 0.75, "<", 2, ">")
+  print(r)
+  print("\n")

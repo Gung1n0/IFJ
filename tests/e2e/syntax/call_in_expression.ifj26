@@ -1,0 +1,13 @@
+// TEST: call inside an expression
+// SPEC: 2.3, 3
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// EXT: FUNEXP (expectation holds only if this extension is NOT implemented)
+// HINT: calls inside expressions are allowed only with FUNEXP
+import ifj26.*
+
+def f(x: Int): Int = x
+
+@main def main(): Unit =
+  val b = 1 + f(2)
+  print(b)

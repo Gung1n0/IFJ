@@ -1,0 +1,22 @@
+// TEST: parameter order, parameters of different types
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def sub(a: Int, b: Int): Int = a - b
+def describe(s: String, n: Int, d: Double): String =
+  val ns = toStr(n)
+  val ds = toStr(d)
+  s + ":" + ns + ":" + ds
+
+@main def main(): Unit =
+  val r = sub(10, 3)
+  print(r)
+  print("\n")
+  val t = describe("x", 4, 2.5)
+  print(t)
+  print("\n")
+  val u = describe("y", 1, 2)
+  print(u)
+  print("\n")

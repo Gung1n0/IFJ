@@ -1,0 +1,31 @@
+// TEST: all forms of Double literals (underscore, .5, exponent, d/D suffix)
+// SPEC: 1.1
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1_000.5
+  print(a)
+  print("\n")
+  val b = .5
+  print(b)
+  print("\n")
+  val c = 5e2
+  print(c)
+  print("\n")
+  val d = 2.5E-1
+  print(d)
+  print("\n")
+  val e = 1.5d
+  print(e)
+  print("\n")
+  val f = 2e1D
+  print(f)
+  print("\n")
+  val g = 0.0
+  print(g)
+  print("\n")
+  val h = 3.0e+1
+  print(h)
+  print("\n")

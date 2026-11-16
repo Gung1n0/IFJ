@@ -1,0 +1,11 @@
+// TEST: output printed before the runtime error stays on stdout
+// SPEC: 6
+// EXPECT: compile=0 run=57
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  print("before\n")
+  val z = 0
+  val r = 1 / z
+  print(r)

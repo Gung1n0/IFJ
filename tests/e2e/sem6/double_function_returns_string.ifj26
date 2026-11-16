@@ -1,0 +1,10 @@
+// TEST: String body of Double function
+// SPEC: 2.3
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(): Double = "s"
+
+@main def main(): Unit =
+  print("x")

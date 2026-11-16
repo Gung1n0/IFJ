@@ -1,0 +1,51 @@
+// TEST: toStr for Int/Double(%.2f)/String/Unit, toInt truncation, Int argument for Double parameter
+// SPEC: 4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: Unit literal () must be accepted by the parser as a term (specification 1.1, 2.1)
+import ifj26.*
+
+@main def main(): Unit =
+  val a = toStr(42)
+  print(a)
+  print("\n")
+  val pi = 3.14159
+  val b = toStr(pi)
+  print(b)
+  print("\n")
+  val c = toStr(2.0)
+  print(c)
+  print("\n")
+  val d = toStr("x")
+  print(d)
+  print("\n")
+  val u = ()
+  val e = toStr(u)
+  print(e)
+  print("\n")
+  val m = -0.5
+  val f = toStr(m)
+  print(f)
+  print("\n")
+  val big = 1000.5
+  val bs = toStr(big)
+  print(bs)
+  print("\n")
+  val g = toInt(3.99)
+  print(g)
+  print("\n")
+  val h = -3.99
+  val hi = toInt(h)
+  print(hi)
+  print("\n")
+  val i = 5
+  val ii = toInt(i)
+  print(ii)
+  print("\n")
+  val n7 = -7
+  val s7 = toStr(n7)
+  print(s7)
+  print("\n")
+  val joined = a + "," + b
+  print(joined)
+  print("\n")

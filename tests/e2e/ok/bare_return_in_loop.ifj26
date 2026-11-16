@@ -1,0 +1,18 @@
+// TEST: bare return from a loop in an explicit Unit function
+// SPEC: 2.3 (rule 1)
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def count(n: Int): Unit =
+  var i = 0
+  while i < 100 do
+    if i == n then
+      return
+    else
+      print(i)
+      i = i + 1
+
+@main def main(): Unit =
+  count(3)
+  print("\n")
