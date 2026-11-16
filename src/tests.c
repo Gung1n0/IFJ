@@ -323,25 +323,25 @@ static const char *opname(operator o)
 {
     switch (o)
     {
-    case add:
+    case OP_ADD:
         return "+";
-    case subtract:
+    case OP_SUBTRACT:
         return "-";
-    case multiply:
+    case OP_MULTIPLY:
         return "*";
-    case divide:
+    case OP_DIVIDE:
         return "/";
-    case lesser:
+    case OP_LESSER:
         return "<";
-    case lesser_or_equal:
+    case OP_LESSER_OR_EQUAL:
         return "<=";
-    case greater:
+    case OP_GREATER:
         return ">";
-    case greater_or_equal:
+    case OP_GREATER_OR_EQUAL:
         return ">=";
-    case equal:
+    case OP_EQUAL:
         return "==";
-    case not_equal:
+    case OP_NEGATE:
         return "!=";
     case negation:
         return "neg";
@@ -361,9 +361,9 @@ static void dump(node *n, char *o)
     switch (n->type)
     {
     case node_lit:
-        if (n->as.lit.type == type_int)
+        if (n->as.lit.type == TYPE_INT)
             snprintf(b, sizeof b, "%d", n->as.lit.i);
-        else if (n->as.lit.type == type_double)
+        else if (n->as.lit.type == TYPE_DOUBLE)
             snprintf(b, sizeof b, "%g", n->as.lit.d);
         else
             snprintf(b, sizeof b, "\"%s\"", n->as.lit.s);
@@ -408,9 +408,9 @@ static unsigned long long eval(node *n)
     if (n->type == node_unar)
         return 0ULL - eval(n->as.unar.operand);
     unsigned long long l = eval(n->as.binar.left), r = eval(n->as.binar.right);
-    if (n->as.binar.op == add)
+    if (n->as.binar.op == OP_ADD)
         return l + r;
-    if (n->as.binar.op == subtract)
+    if (n->as.binar.op == OP_SUBTRACT)
         return l - r;
     return l * r;
 }
@@ -530,7 +530,7 @@ static stack *new_st(void)
 static node *lit_i(int v)
 {
     node *n = create_node(node_lit, 1, 1);
-    n->as.lit.type = type_int;
+    n->as.lit.type = TYPE_INT;
     n->as.lit.i = v;
     return n;
 }
@@ -681,7 +681,7 @@ static void test_create_free_node(void)
     c->as.call.size = 1;
     b->as.block.items[2] = c;
     node *s = create_node(node_lit, 6, 1);
-    s->as.lit.type = type_string;
+    s->as.lit.type = TYPE_STRING;
     s->as.lit.s = strduplicate("txt");
     b->as.block.items[3] = s;
     f->as.function.body = b;
@@ -695,7 +695,7 @@ static void test_parse_type_operator(void)
         TokenType t;
         data_types d;
     } ty[] = {
-        {TOKEN_KW_INT, type_int}, {TOKEN_KW_UNIT, type_unit}, {TOKEN_KW_DOUBLE, type_double}, {TOKEN_KW_STRING, type_string}, {TOKEN_IDENTIFIER, type_none}, {TOKEN_INT_LITERAL, type_none}, {TOKEN_STRING_LITERAL, type_none}, {TOKEN_EOL, type_none}, {TOKEN_KW_DEF, type_none}};
+        {TOKEN_KW_INT, TYPE_INT}, {TOKEN_KW_UNIT, TYPE_UNIT}, {TOKEN_KW_DOUBLE, TYPE_DOUBLE}, {TOKEN_KW_STRING, TYPE_STRING}, {TOKEN_IDENTIFIER, type_none}, {TOKEN_INT_LITERAL, type_none}, {TOKEN_STRING_LITERAL, type_none}, {TOKEN_EOL, type_none}, {TOKEN_KW_DEF, type_none}};
     for (size_t i = 0; i < sizeof ty / sizeof *ty; i++)
     {
         Token t = {ty[i].t, NULL, 1, 1};
@@ -706,7 +706,7 @@ static void test_parse_type_operator(void)
         TokenType t;
         operator o;
     } op[] = {
-        {TOKEN_OP_PLUS, add}, {TOKEN_OP_MINUS, subtract}, {TOKEN_OP_MUL, multiply}, {TOKEN_OP_DIV, divide}, {TOKEN_OP_EQ, equal}, {TOKEN_OP_NEQ, not_equal}, {TOKEN_OP_LESS, lesser}, {TOKEN_OP_MORE, greater}, {TOKEN_OP_LESS_EQ, lesser_or_equal}, {TOKEN_OP_MORE_EQ, greater_or_equal}, {TOKEN_OP_ASSIGN, none}, {TOKEN_LPAR, none}, {TOKEN_IDENTIFIER, none}, {TOKEN_EOF, none}};
+        {TOKEN_OP_PLUS, OP_ADD}, {TOKEN_OP_MINUS, OP_SUBTRACT}, {TOKEN_OP_MUL, OP_MULTIPLY}, {TOKEN_OP_DIV, OP_DIVIDE}, {TOKEN_OP_EQ, OP_EQUAL}, {TOKEN_OP_NEQ, OP_NEGATE}, {TOKEN_OP_LESS, OP_LESSER}, {TOKEN_OP_MORE, OP_GREATER}, {TOKEN_OP_LESS_EQ, OP_LESSER_OR_EQUAL}, {TOKEN_OP_MORE_EQ, OP_GREATER_OR_EQUAL}, {TOKEN_OP_ASSIGN, OP_NONE}, {TOKEN_LPAR, OP_NONE}, {TOKEN_IDENTIFIER, OP_NONE}, {TOKEN_EOF, OP_NONE}};
     for (size_t i = 0; i < sizeof op / sizeof *op; i++)
     {
         Token t = {op[i].t, NULL, 1, 1};
@@ -773,13 +773,13 @@ static void test_top_terminal_idx_to_op(void)
     }
     free_stack(s);
 
-    operator exp[15] = {add, subtract, multiply, divide, negation, none, none, none, none,
-                        lesser, lesser_or_equal, greater, greater_or_equal, equal, not_equal};
+    operator exp[15] = {OP_ADD, OP_SUBTRACT, OP_MULTIPLY, OP_DIVIDE, negation, OP_NONE, OP_NONE, OP_NONE, OP_NONE,
+                        OP_LESSER, OP_LESSER_OR_EQUAL, OP_GREATER, OP_GREATER_OR_EQUAL, OP_EQUAL, OP_NEGATE};
     for (int i = 0; i < 15; i++)
         CHECK(idx_to_op(i) == exp[i]);
-    CHECK(idx_to_op(-1) == none && idx_to_op(15) == none && idx_to_op(9999) == none);
+    CHECK(idx_to_op(-1) == OP_NONE && idx_to_op(15) == OP_NONE && idx_to_op(9999) == OP_NONE);
     for (int i = 0; i < 100; i++)
-        CHECK(idx_to_op(100 + rand() % 1000) == none);
+        CHECK(idx_to_op(100 + rand() % 1000) == OP_NONE);
 }
 
 static int idx(TokenType ty, const char *d, int depth, int prev)
@@ -843,13 +843,13 @@ static void test_parse_term(void)
     CHECK(n && n->type == node_id && strcmp(n->as.ident.name, "abc") == 0);
     free_node(n);
     n = term_of(TOKEN_STRING_LITERAL, "hi");
-    CHECK(n && n->type == node_lit && n->as.lit.type == type_string && !strcmp(n->as.lit.s, "hi"));
+    CHECK(n && n->type == node_lit && n->as.lit.type == TYPE_STRING && !strcmp(n->as.lit.s, "hi"));
     free_node(n);
     n = term_of(TOKEN_STRING_LITERAL, "");
     CHECK(n && n->as.lit.s && n->as.lit.s[0] == 0);
     free_node(n);
     n = term_of(TOKEN_DOUBLE_LITERAL, "3.14");
-    CHECK(n && n->as.lit.type == type_double && n->as.lit.d > 3.139999 && n->as.lit.d < 3.140001);
+    CHECK(n && n->as.lit.type == TYPE_DOUBLE && n->as.lit.d > 3.139999 && n->as.lit.d < 3.140001);
     free_node(n);
     n = term_of(TOKEN_INT_LITERAL, "0");
     CHECK(n && n->as.lit.i == 0);
@@ -860,7 +860,7 @@ static void test_parse_term(void)
         char b[16];
         snprintf(b, sizeof b, "%d", v);
         n = term_of(TOKEN_INT_LITERAL, b);
-        CHECK(n && n->type == node_lit && n->as.lit.type == type_int && n->as.lit.i == v);
+        CHECK(n && n->type == node_lit && n->as.lit.type == TYPE_INT && n->as.lit.i == v);
         free_node(n);
     }
     ARR(a, T(TOKEN_IDENTIFIER, "a"), T(TOKEN_EOF, NULL));
@@ -1059,12 +1059,12 @@ static void test_statements(void)
     free_node(n);
     a = lex("var y: Int = 1 + 2");
     n = parse_val_var(&a, &a.token_data[0]);
-    CHECK(n && n->as.val_var.changable && n->as.val_var.type == type_int &&
+    CHECK(n && n->as.val_var.changable && n->as.val_var.type == TYPE_INT &&
           n->as.val_var.init->type == node_binar);
     free_node(n);
     a = lex("var s: String = f(1)");
     n = parse_val_var(&a, &a.token_data[0]);
-    CHECK(n && n->as.val_var.type == type_string && n->as.val_var.init->type == node_call);
+    CHECK(n && n->as.val_var.type == TYPE_STRING && n->as.val_var.init->type == node_call);
     free_node(n);
     const char *badv[] = {"val = 5", "val x 5", "val x: = 5", "val x: Foo = 1", "val x =",
                           "val 5 = 5", "var", "val x: Int"};
@@ -1179,9 +1179,9 @@ static void test_def_and_main(void)
     node *n = parse_def(&a, &a.token_data[0]);
     node *fn = n;
     CHECK(fn && fn->type == node_function && !strcmp(fn->as.function.name, "f") &&
-          fn->as.function.param_count == 2 && fn->as.function.params[0].types == type_int &&
-          fn->as.function.params[1].types == type_string && !strcmp(fn->as.function.params[1].name, "b") &&
-          fn->as.function.return_type == type_int && fn->as.function.explicit &&
+          fn->as.function.param_count == 2 && fn->as.function.params[0].types == TYPE_INT &&
+          fn->as.function.params[1].types == TYPE_STRING && !strcmp(fn->as.function.params[1].name, "b") &&
+          fn->as.function.return_type == TYPE_INT && fn->as.function.explicit &&
           !fn->as.function.is_main && fn->as.function.body->as.block.size == 1);
     free_node(n);
     a = lex("def k() = 1 + 2\n");
@@ -1191,7 +1191,7 @@ static void test_def_and_main(void)
     free_node(n);
     a = lex("def h(): Unit =\n  print(1)\n");
     n = parse_def(&a, &a.token_data[0]);
-    CHECK(n && n->as.function.return_type == type_unit);
+    CHECK(n && n->as.function.return_type == TYPE_UNIT);
     free_node(n);
     a = lex("def f(a: Int,\n) = 1\n"); /* koncova ciarka + novy riadok */
     n = parse_def(&a, &a.token_data[0]);
@@ -1206,8 +1206,8 @@ static void test_def_and_main(void)
         {
             int t = rand() % 3;
             const char *tn[] = {"Int", "Double", "String"};
-            want[i] = t == 0 ? type_int : t == 1 ? type_double
-                                                 : type_string;
+            want[i] = t == 0 ? TYPE_INT : t == 1 ? TYPE_DOUBLE
+                                                 : TYPE_STRING;
             char b[48];
             snprintf(b, sizeof b, "%sp%d: %s", i ? ", " : "", i, tn[t]);
             strcat(src, b);
