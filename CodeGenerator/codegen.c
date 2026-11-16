@@ -5,7 +5,7 @@
 
 #include "ast.h"
 #include "codegen.h"
-#include "error.h"
+#include "common_functions.h"
 #include "symtable.h"
 
 typedef enum {
@@ -67,13 +67,15 @@ typedef struct {
 } gen_context;
 
 // internal error handler
-static void internal_err(node *where, char *msg) {
-  if (where != NULL) {
-    gen_error(msg, ERR_INTERNAL, where->row, where->column);
+static void gen_error(error_code err, node *n) {
+  const char *message = error_to_message(err);
+  if (n == NULL) {
+    fprintf(stderr, "%s\n", message);
+  } else {
+    fprintf(stderr, "%s at row %i column %i\n", message, n->row, n->column);
   }
-  gen_error(msg, ERR_INTERNAL, 0, 0);
+  exit(err);
 }
-
 // operand construction functions
 
 //
@@ -188,7 +190,7 @@ static void print_operand(gen_operand operand) {
     printf("$%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number,
            operand.as.numbered.part);
   } else {
-    internal_err(NULL, "Unknown operand type");
+    gen_error(ERR_INTERNAL, NULL);
   }
 }
 
@@ -269,14 +271,14 @@ static void concat_(void) {
 
 static sym_variable *node_variable_get(node *var_node) {
   if (var_node->var == NULL) {
-    internal_err(var_node, "no variable in node");
+    gen_error(ERR_INTERNAL, var_node);
   }
   return var_node->var;
 }
 
 static sym_function *node_function_get(node *fn_node) {
   if (fn_node->func == NULL) {
-    internal_err(fn_node, "no function in node");
+    gen_error(ERR_INTERNAL, fn_node);
   }
   return fn_node->func;
 }
@@ -438,7 +440,7 @@ static void literal_generate(node *lit) {
   } else if (lit->as.lit.type == TYPE_UNIT) {
     pushs_(operand_nil());
   } else {
-    internal_err(lit, "unknown literal type");
+    gen_error(ERR_INTERNAL, lit);
   }
 }
 
@@ -449,7 +451,7 @@ static void identifier_generate(node *id) {
 // generates code for unary operations
 static void unary_generate(gen_context *ctx, node *expr) {
   if (expr->as.unar.op != OP_NEGATE) {
-    internal_err(expr, "unknown unary operator");
+    gen_error(ERR_INTERNAL, expr);
   }
 
   expression_generate(ctx, expr->as.unar.operand);
@@ -496,7 +498,7 @@ static void binary_generate(gen_context *ctx, node *expr) {
     lts_();
     nots_();
   } else {
-    internal_err(expr, "unknown operator");
+    gen_error(ERR_INTERNAL, expr);
   }
 }
 
@@ -523,7 +525,7 @@ static void expression_generate(gen_context *ctx, node *expr) {
   } else if (expr->type == node_unar) {
     unary_generate(ctx, expr);
   } else {
-    internal_err(expr, "unexpected node in expression");
+    gen_error(ERR_INTERNAL, expr);
   }
   if (expr->convert_to_double) {
     int2floats_();
@@ -626,7 +628,7 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
   } else if (stmnt->type == node_if) {
     if_generate(ctx, stmnt);
   } else {
-    internal_err(stmnt, "unexpected node in statement");
+    gen_error(ERR_INTERNAL, stmnt);
   }
 }
 
@@ -638,8 +640,8 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
     node *stmnt = block->as.block.items[i];
     bool is_last = (i == cnt - 1);
 
-    if (is_keep_value && is_last && (stmnt->type == node_expression ||
-        stmnt->type == node_call)) {
+    if (is_keep_value && is_last &&
+        (stmnt->type == node_expression || stmnt->type == node_call)) {
       expression_generate(ctx, stmnt);
     } else {
       statement_generate(ctx, stmnt);
@@ -673,11 +675,11 @@ static void function_generate(gen_context *ctx, node *fn) {
   // error handling of parameters
   int param_count = fn->as.function.param_count;
   if (function_entry->locals_count < param_count) {
-    internal_err(fn, "lower number of locals than parameters");
+    gen_error(ERR_INTERNAL, fn);
   }
   for (int i = 0; i < param_count; i++) {
     if (!function_entry->locals[i]->is_parameter) {
-      internal_err(fn, "local variable is not parameter");
+      gen_error(ERR_INTERNAL, fn);
     }
   }
 
@@ -701,7 +703,7 @@ void code_generate(struct node *program) {
 
   node *main_function = find_main(program);
   if (main_function == NULL) {
-    internal_err(program, "@main not found");
+    gen_error(ERR_INTERNAL, program);
   }
   gen_context ctx = {.program = program};
 
