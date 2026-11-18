@@ -1,57 +1,8 @@
-// DORIESIT @ ERROR
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-
-typedef enum
-{
-    TOKEN_IDENTIFIER,     // napr. 'moj_vysledok'
-    TOKEN_INT_LITERAL,    // napr. 42
-    TOKEN_DOUBLE_LITERAL, // napr. 3.14
-    TOKEN_STRING_LITERAL, // napr. "ahoj"
-
-    TOKEN_KW_DEF,
-    TOKEN_KW_DO,
-    TOKEN_KW_ELSE,
-    TOKEN_KW_IF,
-    TOKEN_KW_INT,
-    TOKEN_KW_STR,
-    TOKEN_KW_DOUBLE,
-    TOKEN_KW_IMPORT,
-    TOKEN_KW_UNIT,
-    TOKEN_KW_VAL,
-    TOKEN_KW_VAR,
-    TOKEN_KW_RETURN,
-    TOKEN_KW_WHILE,
-    TOKEN_KW_THEN,
-
-    TOKEN_OP_PLUS,    // +
-    TOKEN_OP_MINUS,   // -
-    TOKEN_OP_MUL,     // *
-    TOKEN_OP_DIV,     // /
-    TOKEN_OP_ASSIGN,  // =
-    TOKEN_OP_EQ,      // ==
-    TOKEN_OP_NEQ,     // !=
-    TOKEN_OP_LESS,    // <
-    TOKEN_OP_MORE,    // >
-    TOKEN_OP_LESSEQ,  // <=
-    TOKEN_OP_MOREEQ,  // >=
-    TOKEN_OP_UNDERSC, // _
-
-    TOKEN_LPAR,  // (
-    TOKEN_RPAR,  // )
-    TOKEN_COLON, // :
-    TOKEN_COMMA, // ,
-    TOKEN_DOT,   // .
-    TOKEN_AT,    // @
-
-    TOKEN_EOL, // \n
-    TOKEN_EOF, // koniec subou
-    TOKEN_IND, // vacsie odsadenie
-    TOKEN_DED  // mensie odsadenie
-} TokenType;
+#include "enums.h"
 
 typedef struct
 {
@@ -80,6 +31,7 @@ typedef enum
     STATE_INT,
     STATE_DOUBLE,
     STATE_STRING,
+    STATE_MULTILINE_STRING, 
     STATE_STRING_LOAD,
     STATE_CHAR,
     STATE_NUM,
@@ -129,12 +81,15 @@ static int space_count = 0;
 static int row = 1;
 static int column = 1;
 static int pen_dot = 0;
-Buffer buffer = {NULL, 0, 32};
-Token token;
-State state;
-int e_pen = 0;
-int comm_lvl;
-int comm_eol;
+static int paren_level = 0;
+static int tab_found = 0;
+static Buffer buffer = {NULL, 0, 32};
+static Token token;
+static State state;
+static int e_pen = 0;
+static int comm_lvl = 0;
+static int comm_eol = 0;
+static int line_has_token = 0;
 
 void bufferCheck()
 {
@@ -142,6 +97,20 @@ void bufferCheck()
     {
         buffer.capacity *= 2;
         buffer.data = realloc(buffer.data, buffer.capacity * sizeof(char));
+    }
+}
+
+void free_lexer_globals() 
+{
+    if (buffer.data != NULL) 
+    {
+        free(buffer.data);
+        buffer.data = NULL;
+    }
+    if (stack.data != NULL) 
+    {
+        free(stack.data);
+        stack.data = NULL;
     }
 }
 
@@ -163,19 +132,9 @@ void fillToken(TokenType type)
     token.column = column;
     token.row = row;
     token.type = type;
-}
-
-void free_lexer_globals()
-{
-    if (buffer.data != NULL)
+    if (type != TOKEN_EOL && type != TOKEN_EOF && type != TOKEN_IND && type != TOKEN_DED)
     {
-        free(buffer.data);
-        buffer.data = NULL;
-    }
-    if (stack.data != NULL)
-    {
-        free(stack.data);
-        stack.data = NULL;
+        line_has_token = 1;
     }
 }
 
@@ -190,12 +149,13 @@ Token get_token(FILE *source)
         stack.data[0] = 0;
     }
 
-    if (state != STATE_SPACE && state != STATE_DED) 
+    if (state != STATE_SPACE && state != STATE_DED && state != STATE_EOF)
     {
         if (line_beg)
         {
             state = STATE_START_LINE;
             space_count = 0;
+            tab_found = 0;
         }
         else
         {
@@ -222,27 +182,40 @@ Token get_token(FILE *source)
         switch (state)
         {
         case (STATE_START_LINE):
-            c = fgetc(source);
-            column++;
-            if (c == EOF)
-            {
-                state = STATE_EOF;
+            line_has_token = 0;
+            while (1) {
+                c = fgetc(source);
+                column++;
+                if (c == ' ') space_count++;
+                else if (c == '\t') tab_found = 1;
+                else break;
             }
-            else if (c == ' ')
-            {
-                space_count++;
-            }
-            else if (c == '\n')
-            {
-                state = STATE_EOL;
-            }
-            else
-            {
+            
+            if (c == '\n') { 
+                space_count = 0; tab_found = 0; column = 1; row++;
+                break;
+            } else if (c == EOF) {
+                state = STATE_EOF; 
+                break;
+            } else {
+                if (c == '/') {
+                    int next_c = fgetc(source);
+                    ungetc(next_c, source);
+                    if (next_c == '/') {
+                        state = STATE_COMM; 
+                        break; 
+                    }
+                }
+                if (tab_found) {
+                    fprintf(stderr, "Chyba 1: Tabulator v odsadeni\n"); 
+                    free_lexer_globals(); exit(1);
+                }
                 ungetc(c, source);
                 column--;
                 state = STATE_SPACE;
             }
             break;
+            
         case (STATE_SPACE):
             if (space_count == stack.data[stack.top])
             {
@@ -254,6 +227,7 @@ Token get_token(FILE *source)
             else if (space_count < stack.data[stack.top])
                 state = STATE_DED;
             break;
+            
         case (STATE_IND):
             if (stack.top + 1 == stack.capacity)
             {
@@ -267,19 +241,34 @@ Token get_token(FILE *source)
             fillToken(TOKEN_IND);
             return token;
             break;
+            
         case (STATE_DED):
             stack.top -= 1;
             state = STATE_SPACE;
             fillToken(TOKEN_DED);
             return token;
             break;
+            
         case (STATE_EOL):
             line_beg = 1;
-            fillToken(TOKEN_EOL);
-            column = 1;
-            row++;
-            return token;
+            space_count = 0;
+            tab_found = 0;
+            if (line_has_token)
+            {
+                line_has_token = 0;
+                fillToken(TOKEN_EOL);
+                column = 1;
+                row++;
+                return token;
+            }
+            else
+            {
+                column = 1;
+                row++;
+                state = STATE_START_LINE;
+            }
             break;
+            
         case (STATE_EOF):
             if (stack.top > 0) 
             {
@@ -290,28 +279,40 @@ Token get_token(FILE *source)
             fillToken(TOKEN_EOF);
             return token;
             break;
+            
         case (STATE_READ):
             c = fgetc(source);
             column++;
-            if (c == ' ' || c == '\t' || c == '\r')
-            {
+            
+            if (c == ' ' || c == '\t' || c == '\r') {
                 continue;
-            }
-            else if (c == '\n')
-            {
-                state = STATE_EOL;
-                break;
-            }
-            else if (c == EOF)
-            {
-                state = STATE_EOF;
-                break;
-            }
-            else if (c == '"')
-            {
-                ungetc(c, source);
-                column--;
-                state = STATE_STRING_LOAD;
+            } else if (c == '\n') {
+                if (paren_level > 0) { 
+                    column = 1; row++; continue;
+                }
+                state = STATE_EOL; break;
+            } else if (c == EOF) {
+                if (column > 1) { 
+                    state = STATE_EOF; fillToken(TOKEN_EOL); return token;
+                }
+                state = STATE_EOF; break;
+            } else if (c == '(') {
+                paren_level++; fillToken(TOKEN_LPAR); return token;
+            } else if (c == ')') {
+                paren_level--; fillToken(TOKEN_RPAR); return token;
+            } else if (c == ';') {
+                fillToken(TOKEN_SEMICOLON); return token;
+            } else if (c == '"') {
+                int c2 = fgetc(source);
+                int c3 = fgetc(source);
+                if (c2 == '"' && c3 == '"') {
+                    column += 2;
+                    state = STATE_MULTILINE_STRING;
+                } else {
+                    ungetc(c3, source);
+                    ungetc(c2, source);
+                    state = STATE_STRING_LOAD; 
+                }
             }
             else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
             {
@@ -328,6 +329,18 @@ Token get_token(FILE *source)
                     ungetc(c, source);
                     column--;
                     state = STATE_NUM;
+                }
+            }
+            else if (c == '.') { // L8
+                c = fgetc(source);
+                if (c >= '0' && c <= '9') {
+                    bufferCheck();
+                    buffer.data[buffer.len++] = '0';
+                    buffer.data[buffer.len++] = '.';
+                    buffer.data[buffer.len++] = c;
+                    column++; state = STATE_DOUBLE_LOAD;
+                } else {
+                    ungetc(c, source); fillToken(TOKEN_DOT); return token;
                 }
             }
             else if (c == '+')
@@ -357,16 +370,6 @@ Token get_token(FILE *source)
                 state = STATE_MORE;
             else if (c == '_')
                 state = STATE_UNDERSC_LOAD;
-            else if (c == '(')
-            {
-                fillToken(TOKEN_LPAR);
-                return token;
-            }
-            else if (c == ')')
-            {
-                fillToken(TOKEN_RPAR);
-                return token;
-            }
             else if (c == ':')
             {
                 fillToken(TOKEN_COLON);
@@ -375,11 +378,6 @@ Token get_token(FILE *source)
             else if (c == ',')
             {
                 fillToken(TOKEN_COMMA);
-                return token;
-            }
-            else if (c == '.')
-            {
-                fillToken(TOKEN_DOT);
                 return token;
             }
             else if (c == '@')
@@ -394,33 +392,56 @@ Token get_token(FILE *source)
                 exit(1);
             }
             break;
+            
         case (STATE_STRING_LOAD):
             c = fgetc(source);
             column++;
             bufferCheck();
-            if (c == '"')
-            {
-                buffer.data[buffer.len] = c;
-                buffer.len++;
+            if (c == '\\') {
+                int esc = fgetc(source); column++;
+                if (esc == 'n') buffer.data[buffer.len++] = '\n';
+                else if (esc == 't') buffer.data[buffer.len++] = '\t';
+                else if (esc == 'r') buffer.data[buffer.len++] = '\r';
+                else if (esc == '"') buffer.data[buffer.len++] = '"';
+                else if (esc == '\\') buffer.data[buffer.len++] = '\\';
+                else { fprintf(stderr, "Chyba 1: Zly escape\n"); free_lexer_globals(); exit(1); }
+            } else if (c == '"') {
                 buffer.data[buffer.len] = '\0';
                 state = STATE_STRING;
-            }
-            else if (c == EOF)
-            {
-                fprintf(stderr, "Lexikalna chyba: Neukonceny retazec (EOF na riadku %d, stlpec %d)\n", row, column);
-                free_lexer_globals();
-                exit(1);
-            }
-            else
-            {
-                buffer.data[buffer.len] = c;
-                buffer.len++;
+            } else if (c == '\n' || c == EOF) {
+                fprintf(stderr, "Chyba 1: Neukonceny retazec\n"); free_lexer_globals(); exit(1);
+            } else {
+                buffer.data[buffer.len++] = c;
             }
             break;
+            
+        case (STATE_MULTILINE_STRING):
+            c = fgetc(source);
+            bufferCheck();
+            if (c == '\n') { row++; column = 1; } else { column++; }
+            
+            if (c == EOF) {
+                fprintf(stderr, "Chyba 1: Neukonceny viacriadkovy retazec\n"); free_lexer_globals(); exit(1);
+            } else if (c == '"') {
+                int c2 = fgetc(source); int c3 = fgetc(source);
+                if (c2 == '"' && c3 == '"') {
+                    column += 2;
+                    buffer.data[buffer.len] = '\0';
+                    state = STATE_STRING;
+                } else {
+                    ungetc(c3, source); ungetc(c2, source);
+                    buffer.data[buffer.len++] = c;
+                }
+            } else {
+                buffer.data[buffer.len++] = c;
+            }
+            break;
+            
         case (STATE_STRING):
             fillToken(TOKEN_STRING_LITERAL);
             return token;
             break;
+            
         case (STATE_CHAR):
             if (e_pen != 0)
             {
@@ -431,7 +452,7 @@ Token get_token(FILE *source)
                 c = fgetc(source);
             column++;
             bufferCheck();
-            if ((c >= '0' && c <= '9') || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_')
+            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') 
             {
                 buffer.data[buffer.len] = c;
                 buffer.len++;
@@ -441,41 +462,25 @@ Token get_token(FILE *source)
                 ungetc(c, source);
                 column--;
                 buffer.data[buffer.len] = '\0';
-                if (strcmp(buffer.data, "def") == 0)
-                    fillToken(TOKEN_KW_DEF);
-                else if (strcmp(buffer.data, "do") == 0)
-                    fillToken(TOKEN_KW_DO);
-                else if (strcmp(buffer.data, "else") == 0)
-                    fillToken(TOKEN_KW_ELSE);
-                else if (strcmp(buffer.data, "if") == 0)
-                    fillToken(TOKEN_KW_IF);
-                else if (strcmp(buffer.data, "Int") == 0)
-                    fillToken(TOKEN_KW_INT);
-                else if (strcmp(buffer.data, "String") == 0)
-                    fillToken(TOKEN_KW_STR);
-                else if (strcmp(buffer.data, "Double") == 0)
-                    fillToken(TOKEN_KW_DOUBLE);
-                else if (strcmp(buffer.data, "import") == 0)
-                    fillToken(TOKEN_KW_IMPORT);
-                else if (strcmp(buffer.data, "Unit") == 0)
-                    fillToken(TOKEN_KW_UNIT);
-                else if (strcmp(buffer.data, "val") == 0)
-                    fillToken(TOKEN_KW_VAL);
-                else if (strcmp(buffer.data, "var") == 0)
-                    fillToken(TOKEN_KW_VAR);
-                else if (strcmp(buffer.data, "return") == 0)
-                    fillToken(TOKEN_KW_RETURN);
-                else if (strcmp(buffer.data, "while") == 0)
-                    fillToken(TOKEN_KW_WHILE);
-                else if (strcmp(buffer.data, "then") == 0)
-                    fillToken(TOKEN_KW_THEN);
-                else
-                {
-                    fillToken(TOKEN_IDENTIFIER);
-                }
+                if (strcmp(buffer.data, "def") == 0) fillToken(TOKEN_KW_DEF);
+                else if (strcmp(buffer.data, "do") == 0) fillToken(TOKEN_KW_DO);
+                else if (strcmp(buffer.data, "else") == 0) fillToken(TOKEN_KW_ELSE);
+                else if (strcmp(buffer.data, "if") == 0) fillToken(TOKEN_KW_IF);
+                else if (strcmp(buffer.data, "Int") == 0) fillToken(TOKEN_KW_INT);
+                else if (strcmp(buffer.data, "String") == 0) fillToken(TOKEN_KW_STRING); 
+                else if (strcmp(buffer.data, "Double") == 0) fillToken(TOKEN_KW_DOUBLE);
+                else if (strcmp(buffer.data, "import") == 0) fillToken(TOKEN_KW_IMPORT);
+                else if (strcmp(buffer.data, "Unit") == 0) fillToken(TOKEN_KW_UNIT);
+                else if (strcmp(buffer.data, "val") == 0) fillToken(TOKEN_KW_VAL);
+                else if (strcmp(buffer.data, "var") == 0) fillToken(TOKEN_KW_VAR);
+                else if (strcmp(buffer.data, "return") == 0) fillToken(TOKEN_KW_RETURN);
+                else if (strcmp(buffer.data, "while") == 0) fillToken(TOKEN_KW_WHILE);
+                else if (strcmp(buffer.data, "then") == 0) fillToken(TOKEN_KW_THEN);
+                else fillToken(TOKEN_IDENTIFIER);
                 return token;
             }
             break;
+            
         case STATE_NUM:
             c = fgetc(source);
             column++;
@@ -518,10 +523,12 @@ Token get_token(FILE *source)
                 state = STATE_INT;
             }
             break;
+            
         case STATE_INT:
             fillToken(TOKEN_INT_LITERAL);
             return token;
             break;
+            
         case STATE_DOUBLE_LOAD_DOT:
             c = fgetc(source);
             column++;
@@ -541,6 +548,7 @@ Token get_token(FILE *source)
                 state = STATE_INT;
             }
             break;
+            
         case STATE_DOUBLE_LOAD:
             bufferCheck();
             c = fgetc(source);
@@ -593,6 +601,7 @@ Token get_token(FILE *source)
                 state = STATE_DOUBLE;
             }
             break;
+            
         case STATE_DOUBLE_LOAD_E:
             bufferCheck();
             c = fgetc(source);
@@ -629,10 +638,12 @@ Token get_token(FILE *source)
                 state = STATE_DOUBLE;
             }
             break;
+            
         case STATE_DOUBLE:
             fillToken(TOKEN_DOUBLE_LITERAL);
             return token;
             break;
+            
         case STATE_E_SIGN:
             c = fgetc(source);
             column++;
@@ -654,9 +665,10 @@ Token get_token(FILE *source)
             {
                 fprintf(stderr, "Lexikalna chyba: Neplatny format exponentu na riadku %d, stlpec %d\n", row, column);
                 free_lexer_globals();
-                exit(1);
+                exit(1); 
             }
             break;
+            
         case STATE_OP_ASSIGN:
             c = fgetc(source);
             if (c == '=')
@@ -672,6 +684,7 @@ Token get_token(FILE *source)
                 return token;
             }
             break;
+            
         case STATE_OP_NEQ:
             c = fgetc(source);
             if (c == '=')
@@ -689,12 +702,13 @@ Token get_token(FILE *source)
                 exit(1);
             }
             break;
+            
         case STATE_LESS:
             c = fgetc(source);
             if (c == '=')
             {
                 column++;
-                fillToken(TOKEN_OP_LESSEQ);
+                fillToken(TOKEN_OP_LESS_EQ);
                 return token;
             }
             else
@@ -704,12 +718,13 @@ Token get_token(FILE *source)
                 return token;
             }
             break;
+            
         case STATE_MORE:
             c = fgetc(source);
             if (c == '=')
             {
                 column++;
-                fillToken(TOKEN_OP_MOREEQ);
+                fillToken(TOKEN_OP_MORE_EQ);
                 return token;
             }
             else
@@ -719,10 +734,11 @@ Token get_token(FILE *source)
                 return token;
             }
             break;
+            
         case STATE_UNDERSC_LOAD:
             c = fgetc(source);
             ungetc(c, source);
-            if ((c >= '0' && c <= '9') || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_')
+            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
             {
                 buffer.data[buffer.len] = '_';
                 buffer.len++;
@@ -734,9 +750,10 @@ Token get_token(FILE *source)
                 return token;
             }
             break;
+            
         case STATE_IDENTIFIER:
             c = fgetc(source);
-            if ((c >= '0' && c <= '9') || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_')
+            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') 
             {
                 buffer.data[buffer.len] = c;
                 buffer.len++;
@@ -749,6 +766,7 @@ Token get_token(FILE *source)
                 return token;
             }
             break;
+            
         case STATE_SLASH:
             c = fgetc(source);
             if (c == '/')
@@ -764,10 +782,12 @@ Token get_token(FILE *source)
             }
             else
             {
+                ungetc(c, source);
                 fillToken(TOKEN_OP_DIV);
                 return token;
             }
             break;
+            
         case STATE_COMM:
             c = fgetc(source);
             if (c == '\n')
@@ -781,6 +801,7 @@ Token get_token(FILE *source)
                 state = STATE_EOF;
             }
             break;
+            
         case STATE_COMM_LVL:
             c = fgetc(source);
             column++;
@@ -794,10 +815,11 @@ Token get_token(FILE *source)
                 }
                 else
                     ungetc(c, source);
+                
                 if (comm_lvl == 0)
                 {
-                    if (comm_eol != 0)
-                        state = STATE_COMM_EOL;
+                    if (comm_eol != 0) state = STATE_COMM_EOL;
+                    else state = STATE_READ;
                 }
             }
             else if (c == '/')
@@ -824,6 +846,7 @@ Token get_token(FILE *source)
                 column = 1;
             }
             break;
+            
         case STATE_COMM_EOL:
             column += comm_eol;
             comm_eol = 0;
@@ -842,6 +865,7 @@ Token get_token(FILE *source)
                 state = STATE_EOF;
             }
             break;
+            
         case STATE_NUM_ZERO:
             c = fgetc(source);
             if (c == '.' || c == 'e' || c == 'E')
@@ -851,7 +875,7 @@ Token get_token(FILE *source)
                 buffer.len++;
                 state = STATE_NUM;
             }
-            else if (c >= '0' && c <= '9')
+            else if (c == '_' || (c >= '0' && c <= '9')) 
             {
                 ungetc(c, source);
                 fprintf(stderr, "Lexikalna chyba: Nenulovy literal nesmie zacinat nulou na riadku %d, stlpec %d\n", row, column);
@@ -865,6 +889,7 @@ Token get_token(FILE *source)
                 buffer.len++;
                 state = STATE_INT;
             }
+            break;
         }
     }
 }
