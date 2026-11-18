@@ -2,7 +2,7 @@
 #define CONSTANTS_H
 
 #include "enums.h"
-const actions table[15][15] = {
+static const actions table[15][15] = {
     {reduce, reduce, shift, shift, shift, shift, reduce, reduce, shift, reduce,
      reduce, reduce, reduce, reduce, reduce}, // +
     {reduce, reduce, shift, shift, shift, shift, reduce, reduce, shift, reduce,

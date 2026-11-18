@@ -1262,7 +1262,3 @@ node *parse_program(token_array *arr) {
   }
   return np;
 }
-int main(int argc, char const *argv[]) {
-  printf("%i%s\n temp", argc, argv[0]);
-  return 0;
-}
