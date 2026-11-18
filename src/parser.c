@@ -333,7 +333,7 @@ operator parse_operator(Token * curr) {
   case TOKEN_OP_EQ:
     return OP_EQUAL;
   case TOKEN_OP_NEQ:
-    return OP_NEGATE;
+    return OP_NOT_EQUAL;
   case TOKEN_OP_LESS:
     return OP_LESSER;
   case TOKEN_OP_MORE:
@@ -416,12 +416,14 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   if (arr->pos + 1 < arr->size)
     next = peek_token_array(arr, 1);
 
-  if (curr->type == TOKEN_IDENTIFIER && next && next->type == TOKEN_LPAR)
+  if (curr->type == TOKEN_IDENTIFIER && next->type == TOKEN_LPAR)
     print_error("didnt expect function here", ERR_SYNTAX, curr->row,
                 curr->column);
 
   if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
-      curr->type == TOKEN_DOUBLE_LITERAL || curr->type == TOKEN_STRING_LITERAL)
+      curr->type == TOKEN_DOUBLE_LITERAL ||
+      curr->type == TOKEN_STRING_LITERAL ||
+      (curr->type == TOKEN_LPAR && next->type == TOKEN_RPAR))
     return 8;
 
   if (curr->type == TOKEN_OP_MINUS && (prev_index == 8 || prev_index == 6))
@@ -462,6 +464,15 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
 
 node *parse_term(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
+
+  if (curr->type == TOKEN_LPAR &&
+      peek_token_array(arr, 1)->type == TOKEN_RPAR) {
+    node *lit = create_node(node_lit, curr->row, curr->column);
+    lit->as.lit.type = TYPE_UNIT;
+    skip_token(arr);
+    skip_token(arr);
+    return lit;
+  }
   if (curr->data == NULL)
     print_error("Syntax error, expected expression", ERR_SYNTAX, curr->row,
                 curr->column);
@@ -532,7 +543,7 @@ operator idx_to_op(int idx) {
   case 13:
     return OP_EQUAL;
   case 14:
-    return OP_NEGATE;
+    return OP_NOT_EQUAL;
   case 5:
   case 6:
   case 7:
@@ -733,8 +744,10 @@ node *parse_call(token_array *arr) {
   while (TOKEN_RPAR != curr->type) {
     if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
         curr->type == TOKEN_DOUBLE_LITERAL ||
-        curr->type == TOKEN_STRING_LITERAL) {
-      if (curr->data == NULL)
+        curr->type == TOKEN_STRING_LITERAL ||
+        (curr->type == TOKEN_LPAR &&
+         peek_token_array(arr, 1)->type == TOKEN_RPAR)) {
+      if (curr->data == NULL && curr->type != TOKEN_LPAR)
         print_error("Syntax error, expected identifier", ERR_SYNTAX, curr->row,
                     curr->column);
 
@@ -742,7 +755,7 @@ node *parse_call(token_array *arr) {
                             sizeof(node *) * (call->as.call.size + 1));
       if (temp == NULL)
         print_error("Internal error, Malloc failed", ERR_INTERNAL, 0, 0);
-      node *argument = parse_expr(arr);
+      node *argument = parse_term(arr);
       call->as.call.items = temp;
       call->as.call.size++;
       call->as.call.items[call->as.call.size - 1] = argument;
@@ -767,6 +780,7 @@ node *parse_call(token_array *arr) {
                   curr->row, curr->column); // big hehe
     }
   }
+
   get_token_from_array(arr, TOKEN_RPAR, NULL);
 
   if (last_comma != 0) {
@@ -900,7 +914,7 @@ node *parse_block(token_array *arr, bool indent) {
         nn = create_node(node_expression, curr->row, curr->column);
         nn->as.expression.expression = parse_expr(arr);
       }
-    } else if (curr->type == TOKEN_INT_LITERAL ||
+    } else if (curr->type == TOKEN_LPAR || curr->type == TOKEN_INT_LITERAL ||
                curr->type == TOKEN_DOUBLE_LITERAL ||
                curr->type == TOKEN_STRING_LITERAL) {
       nn = create_node(node_expression, curr->row, curr->column);
@@ -1078,25 +1092,16 @@ void parse_params(token_array *arr, node *n) {
         if (curr->type == TOKEN_COMMA) {
           int comma_row = curr->row;
           int comma_col = curr->column;
-          bool had_eol = false;
 
           skip_token(arr);
           curr = peek_token_array(arr, 0);
-          while (curr->type == TOKEN_EOL) {
-            had_eol = true;
-            skip_token(arr);
-            curr = peek_token_array(arr, 0);
-          }
 
-          if (curr->type == TOKEN_RPAR && !had_eol)
+          if (curr->type == TOKEN_RPAR && curr->row == comma_row)
             print_error("Syntax error, unexpected ','", ERR_SYNTAX, comma_row,
                         comma_col);
-        } else {
-          if (check_bracket(curr))
-            print_error("Syntax error, expected ',' or ')'", ERR_SYNTAX,
-                        arr->token_data[arr->pos].row,
-                        arr->token_data[arr->pos].column);
-        }
+        } else if (curr->type != TOKEN_RPAR)
+          print_error("Syntax error, expected ',' or ')'", ERR_SYNTAX,
+                      curr->row, curr->column);
       } else
         print_error("Syntax error, expected identifier", ERR_SYNTAX,
                     arr->token_data[arr->pos].row,
