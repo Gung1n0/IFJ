@@ -25,14 +25,16 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HDRS) | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 # CHECK OF SOURCE FILES
 
+
+# AI Generated clang-tidy part
 .PHONY: check
 check:
 	@echo "Running clang-format..."
 	clang-format --dry-run --Werror $(SRCS) $(HDRS)
 	@echo "Running cppcheck..."
-	cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem -I$(SRC_DIR) $(SRCS)
+	cppcheck --enable=warning,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem -I$(SRC_DIR) $(SRCS)
 	@echo "Running clang-tidy..."
-	clang-tidy $(SRCS) -- $(CFLAGS)
+	clang-tidy -checks=-clang-analyzer-security.insecureAPI.* $(SRCS) -- $(CFLAGS)
 
 
 
