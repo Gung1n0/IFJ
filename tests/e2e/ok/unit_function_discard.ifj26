@@ -1,0 +1,30 @@
+// TEST: explicit Unit: value discarded (also for return 5), bare return
+// SPEC: 2.3 (rules 1, 4)
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: explicit Unit: value of body/return is discarded and () is returned (2.3 rule 4)
+import ifj26.*
+
+def f(): Unit =
+  42
+
+def g(x: Int): Unit =
+  if x > 0 then
+    print("pos\n")
+    return
+  else
+    print("nonpos\n")
+  print("after\n")
+
+def h(): Unit =
+  return 5
+
+@main def main(): Unit =
+  val r = f()
+  print(r)
+  print("\n")
+  g(1)
+  g(0)
+  val q = h()
+  print(q)
+  print("\n")

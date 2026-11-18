@@ -1,0 +1,26 @@
+// TEST: function body ends with if where all branches return (nested if)
+// SPEC: 2.3 (rule 3), 2.4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def classify(x: Int): String =
+  if x < 0 then
+    return "negative"
+  else
+    if x == 0 then
+      return "zero"
+    else
+      return "positive"
+
+@main def main(): Unit =
+  val m = -5
+  val a = classify(m)
+  print(a)
+  print("\n")
+  val b = classify(0)
+  print(b)
+  print("\n")
+  val c = classify(7)
+  print(c)
+  print("\n")

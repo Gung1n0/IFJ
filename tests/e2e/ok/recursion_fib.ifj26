@@ -1,0 +1,20 @@
+// TEST: recursive function (explicit return type)
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def fib(n: Int): Int =
+  if n < 2 then
+    return n
+  else
+    val a = n - 1
+    val b = n - 2
+    val fa = fib(a)
+    val fb = fib(b)
+    return fa + fb
+
+@main def main(): Unit =
+  val r = fib(15)
+  print(r)
+  print("\n")

@@ -1,0 +1,10 @@
+// TEST: statement outside a function
+// SPEC: 2
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+val x = 1
+
+@main def main(): Unit =
+  print("x")

@@ -1,0 +1,17 @@
+// TEST: call of a function with inferred return type defined later
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = twice(21)
+  print(a)
+  print("\n")
+  val s = name()
+  print(s)
+  print("\n")
+
+def twice(x: Int) = x * 2
+
+def name() = "ifj"

@@ -1,0 +1,16 @@
+// TEST: escape sequences \t \" \\ \r \n, # and spaces in strings
+// SPEC: 1.1, 7.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: lexer must replace escape sequences, codegen must write \xyz escapes into string@ constants
+import ifj26.*
+
+@main def main(): Unit =
+  print("tab:\tend\n")
+  print("quote:\"q\"\n")
+  print("backslash:\\\n")
+  print("hash # and  two spaces\n")
+  print("cr:\r\n")
+  val s = "a\\nb"
+  print(s)
+  print("\n")

@@ -1,0 +1,9 @@
+// TEST: ord with Double index
+// SPEC: 4
+// EXPECT: compile=5 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val n = ord("abc", 1.0)
+  print(n)

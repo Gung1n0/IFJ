@@ -1,0 +1,18 @@
+// TEST: assignment from call, return of a call
+// SPEC: 2.2, 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def inc(x: Int): Int = x + 1
+
+def incTwice(x: Int): Int =
+  val y = inc(x)
+  return inc(y)
+
+@main def main(): Unit =
+  var a = 0
+  a = inc(a)
+  a = incTwice(a)
+  print(a)
+  print("\n")

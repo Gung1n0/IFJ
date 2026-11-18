@@ -1,0 +1,18 @@
+// TEST: recursion 1000 levels deep (frames of the interpreter)
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def sum(n: Int): Int =
+  if n == 0 then
+    return 0
+  else
+    val m = n - 1
+    val s = sum(m)
+    return s + n
+
+@main def main(): Unit =
+  val r = sum(1000)
+  print(r)
+  print("\n")

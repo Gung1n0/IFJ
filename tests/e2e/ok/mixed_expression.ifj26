@@ -1,0 +1,13 @@
+// TEST: Int/Double mixed in one expression, Int division inside Double expression
+// SPEC: 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val r = (1 + 2.5) * 2 - 3 / 2
+  print(r)
+  print("\n")
+  val big = 1e10
+  print(big)
+  print("\n")

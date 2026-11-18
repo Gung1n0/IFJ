@@ -1,0 +1,21 @@
+// TEST: parameters/arguments over more lines with trailing comma
+// SPEC: 1.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: end of line inside parentheses is white space (1.2); lexer and parser must agree how the parser learns that a new line followed the comma
+import ifj26.*
+
+def add3(
+  a: Int,
+  b: Int,
+  c: Int,
+  ): Int = a + b + c
+
+@main def main(): Unit =
+  val r = add3(
+    1,
+    2,
+    3,
+    )
+  print(r)
+  print("\n")

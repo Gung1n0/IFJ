@@ -1,0 +1,10 @@
+// TEST: Double division by zero -> DIV error 57
+// SPEC: 3, 7.4.3
+// EXPECT: compile=0 run=57
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val z = 0.0
+  val r = 1.0 / z
+  print(r)
