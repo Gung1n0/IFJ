@@ -68,4 +68,4 @@ clean:
 zip: clean
 	@echo "Creating zip file ..."
 	zip -r $(ARCHIVE) Makefile $(SRC_DIR) dokumentace.pdf rozdeleni rozsireni -x '*/.*'
-	./is_it_ok.sh $(ARCHIVE) is_it_ok_test
+	./is_it_ok.sh $(ARCHIVE)
