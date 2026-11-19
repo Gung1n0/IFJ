@@ -30,6 +30,15 @@ typedef struct {
   int locals_capacity;
 } sem_context;
 
+typedef struct {
+  sym_function *from;
+  sym_function *to;
+} call_edge;
+
+static call_edge *edges = NULL;
+static int edge_count = 0;
+static int edge_capacity = 0;
+
 static data_types analyze_expressions(sem_context *c, node *n);
 static analysis_result analyze_statement(sem_context *c, node *n);
 static analysis_result analyze_block(sem_context *c, node *n);
@@ -85,6 +94,89 @@ static sym_parameter param_to_sym_param(node *n, param p) {
     sem_error(ERR_INTERNAL, n);
 
   return sp;
+}
+
+/// @brief Records a call from one function to another into the global array of
+/// call edges, growing the array when it is full. The edges are used after the
+/// analysis to detect recursion in functions without an explicit return type
+/// @param from Function that contains the call (the caller)
+/// @param to Function that is being called (the callee)
+/// @param n Node, used to report on a error
+static void record_call_edge(sym_function *from, sym_function *to, node *n) {
+  if (edge_count >= edge_capacity) {
+    int new_capacity = (edge_capacity == 0) ? 16 : edge_capacity * 2;
+    call_edge *tmp = realloc(edges, new_capacity * sizeof(call_edge));
+    if (tmp == NULL)
+      sem_error(ERR_INTERNAL, n);
+    edges = tmp;
+    edge_capacity = new_capacity;
+  }
+  edges[edge_count++] = (call_edge){from, to};
+}
+
+/// @brief Depth-first search over the recorded call edges, checks if the
+/// target function can be reached by following calls starting at cur
+/// @param cur Function the search starts from
+/// @param target Function we are looking for
+/// @param visited Array of functions that were already searched through, so
+/// the search can't loop forever on cycles that don't contain the target
+/// @param visited_count Number of functions currently stored in visited
+/// @return Returns true if target is reachable from cur, else false
+static bool reaches(sym_function *cur, sym_function *target,
+                    sym_function **visited, int *visited_count) {
+  for (int i = 0; i < edge_count; i++) {
+    if (edges[i].from != cur)
+      continue;
+
+    sym_function *next = edges[i].to;
+    if (next == target)
+      return true;
+
+    bool seen = false;
+    for (int v = 0; v < *visited_count; v++) {
+      if (visited[v] == next) {
+        seen = true;
+        break;
+      }
+    }
+    if (seen)
+      continue;
+
+    visited[(*visited_count)++] = next;
+    if (reaches(next, target, visited, visited_count))
+      return true;
+  }
+  return false;
+}
+
+/// @brief Checks that every function that takes part in recursion (direct or
+/// indirect) has an explicit return type. Has to run after all function bodies
+/// were analyzed, so that all the call edges are already recorded
+/// @param table Sym_table, used to look up the functions
+/// @param program Program node, used to iterate over the functions and to
+/// report on a error
+static void check_untyped_recursion(sym_table *table, node *program) {
+  // each visited entry is a distinct edge target, so edge_count is enough
+  sym_function **visited = calloc(edge_count + 1, sizeof(sym_function *));
+  if (visited == NULL)
+    sem_error(ERR_INTERNAL, program);
+
+  for (int i = 0; i < program->as.program.size; i++) {
+    node *current = program->as.program.items[i];
+    sym_function *f = sym_lookup_function(table, current->as.function.name);
+    if (f == NULL)
+      sem_error(ERR_INTERNAL, program);
+
+    if (f->has_explicit_return_type)
+      continue;
+
+    int visited_count = 0;
+    if (reaches(f, f, visited, &visited_count))
+      sem_error(ERR_TYPES, current);
+  }
+
+  free(visited);
+  free(edges);
 }
 
 /// @brief Marks node if it requires to be converted to double
@@ -184,6 +276,7 @@ static data_types analyze_call(sem_context *c, node *n) {
     sem_error(ERR_ARGUMENTS, n);
 
   n->func = function;
+  record_call_edge(c->current_function_entry, function, n);
 
   // check if the functions arguments are correct
   for (int arg_id = 0; arg_id < function->parameter_count; arg_id++) {
@@ -534,11 +627,11 @@ void sem_analyze(node *program, sym_table *table) {
     sem_error(ERR_INTERNAL, program);
 
   main_counter = 0;
+  edge_count = 0;
 
   // first pass to locate all the functions
   for (int i = 0; i < program->as.program.size; i++) {
     node *current = program->as.program.items[i];
-
     bool is_function = is_function_node(current);
     if (!is_function)
       sem_error(ERR_INTERNAL, current);
@@ -570,4 +663,5 @@ void sem_analyze(node *program, sym_table *table) {
 
     analyze_function_entry(table, function_entry);
   }
+  check_untyped_recursion(table, program);
 }
