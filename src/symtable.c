@@ -168,7 +168,9 @@ static bool register_all_built_in_functions(sym_table *t) {
          REGISTER_BUILTIN(TOINT) == ERR_NONE &&
          REGISTER_BUILTIN(STRLENGTH) == ERR_NONE &&
          REGISTER_BUILTIN(SUBSTR) == ERR_NONE &&
-         REGISTER_BUILTIN(ORD) == ERR_NONE && REGISTER_BUILTIN(CHR) == ERR_NONE;
+         REGISTER_BUILTIN(ORD) == ERR_NONE &&
+         REGISTER_BUILTIN(CHR) == ERR_NONE &&
+         REGISTER_BUILTIN(READBOOL) == ERR_NONE;
 }
 
 /// @brief Initializes sym_scope_data

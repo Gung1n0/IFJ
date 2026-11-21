@@ -45,13 +45,17 @@ typedef enum {
   OP_DIVIDE,
   OP_EQUAL,
   OP_NEGATE,
-  // OP_POWER,
   OP_LESSER,
   OP_LESSER_OR_EQUAL,
   OP_GREATER,
   OP_GREATER_OR_EQUAL,
   OP_NOT_EQUAL,
-  OP_NONE
+  OP_NONE,
+
+  // BOOLTHEN
+  OP_NOT,
+  OP_AND,
+  OP_OR
 } operator;
 
 typedef enum {
@@ -66,4 +70,76 @@ typedef enum {
   ERR_OTHER_SEMANTIC = 10,
   ERR_INTERNAL = 99
 } error_code;
+typedef enum {
+  TOKEN_IDENTIFIER,     // napr. 'moj_vysledok'
+  TOKEN_INT_LITERAL,    // napr. 42
+  TOKEN_DOUBLE_LITERAL, // napr. 3.14
+  TOKEN_STRING_LITERAL, // napr. "ahoj"
+
+  TOKEN_KW_DEF,
+  TOKEN_KW_DO,
+  TOKEN_KW_ELSE,
+  TOKEN_KW_IF,
+  TOKEN_KW_INT,
+  TOKEN_KW_DOUBLE,
+  TOKEN_KW_STRING,
+  TOKEN_KW_IMPORT,
+  TOKEN_KW_UNIT,
+  TOKEN_KW_VAL,
+  TOKEN_KW_VAR,
+  TOKEN_KW_RETURN,
+  TOKEN_KW_WHILE,
+  TOKEN_KW_THEN,
+
+  TOKEN_OP_PLUS,    // +
+  TOKEN_OP_MINUS,   // -
+  TOKEN_OP_MUL,     // *
+  TOKEN_OP_DIV,     // /
+  TOKEN_OP_ASSIGN,  // =
+  TOKEN_OP_EQ,      // ==
+  TOKEN_OP_NEQ,     // !=
+  TOKEN_OP_LESS,    // <
+  TOKEN_OP_MORE,    // >
+  TOKEN_OP_LESS_EQ, // <=
+  TOKEN_OP_MORE_EQ, // >=
+  TOKEN_OP_UNDERSC, // _
+
+  TOKEN_LPAR,  // (
+  TOKEN_RPAR,  // )
+  TOKEN_COLON, // :
+  TOKEN_COMMA, // ,
+  TOKEN_DOT,   // .
+  TOKEN_AT,    // @
+  TOKEN_SEMICOLON,
+
+  TOKEN_EOL,
+  TOKEN_EOF,
+  TOKEN_IND,
+  TOKEN_DED
+} TokenType;
+typedef enum { LPAR, RPAR, none_b } bracket_type;
+
+typedef enum { terminal, node_item } item_type;
+
+typedef enum { L_TO_R, R_TO_L } asocitivity;
+
+typedef enum {
+  prec_plus,
+  prec_minus,
+  prec_multiply,
+  prec_divide,
+  prec_negate,
+  prec_lpar,
+  prec_rpar,
+  prec_end,
+  prec_i,
+  prec_less,
+  prec_less_equal,
+  prec_greater,
+  prec_greater_equal,
+  prec_is_eqal,
+  prec_is_not_equal
+} symbols;
+typedef enum { shift, reduce, prec_equal, error } actions;
+
 #endif

@@ -78,6 +78,11 @@ op_result binary_operation(operator op, data_types type1, data_types type2) {
       return (op_result){true, TYPE_BOOLEAN, type1};
 
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+  case OP_AND:
+  case OP_OR:
+    if (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)
+      return (op_result){true, TYPE_BOOLEAN, TYPE_BOOLEAN};
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   default:
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   }
@@ -87,6 +92,11 @@ op_result unary_operation(operator op, data_types operand) {
   if (op == OP_NEGATE) {
     if (operand == TYPE_INT || operand == TYPE_DOUBLE)
       return (op_result){true, operand, operand};
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+  }
+  if (op == OP_NOT) {
+    if (operand == TYPE_BOOLEAN)
+      return (op_result){true, TYPE_BOOLEAN, TYPE_BOOLEAN};
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   }
   return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
@@ -127,9 +137,6 @@ bool is_return_compatible(data_types declared, data_types value) {
 
 /// @brief Checks if a data type is a valid varaible type
 bool is_valid_variable_type(data_types type) {
-  // remove for BOOLTHEN extension
-  if (type == TYPE_BOOLEAN)
-    return false;
   if (type == TYPE_UNKNOWN || type == TYPE_ANY)
     return false;
   return true;

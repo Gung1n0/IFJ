@@ -78,4 +78,10 @@
 #define CHR_PARAMS ((const sym_parameter[]){BUILTIN_PARAM("code", TYPE_INT)})
 #define CHR_RETURN TYPE_STRING
 
+// readBoolean
+#define READBOOL_NAME "readBoolean"
+#define READBOOL_PARAM_COUNT 0
+#define READBOOL_PARAMS NULL
+#define READBOOL_RETURN TYPE_BOOLEAN
+
 #endif
