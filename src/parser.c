@@ -203,7 +203,10 @@ void parse_prologue(token_array *arr) {
 
     get_token_from_array(arr, TOKEN_OP_MUL, NULL);
 
-    get_token_from_array(arr, TOKEN_EOL, NULL);
+    if (peek_token_array(arr, 0)->type == TOKEN_EOL)
+      get_token_from_array(arr, TOKEN_EOL, NULL);
+    else
+      get_token_from_array(arr, TOKEN_EOF, NULL);
     return;
   }
   print_error("expected prologue", ERR_SYNTAX, arr->token_data[arr->pos].row,
@@ -301,6 +304,9 @@ void free_node(node *n) {
       free(n->as.call.items);
     }
     break;
+  case node_member:
+    free(n->as.member.name);
+    free_node(n->as.member.obj);
   }
   free(n);
 }
@@ -462,6 +468,26 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   }
 }
 
+node *parse_member(token_array *arr, node *prev) {
+  Token *curr = peek_token_array(arr, 0);
+  while (curr->type == TOKEN_DOT) {
+    node *mem = create_node(node_member, curr->row, curr->column);
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+
+    if (curr->type == TOKEN_IDENTIFIER && curr->data != NULL) {
+      mem->as.member.name = strduplicate(curr->data);
+      mem->as.member.obj = prev;
+    } else
+      print_error("expected identifier", ERR_SYNTAX, curr->row, curr->column);
+
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+    prev = mem;
+  }
+  return prev;
+}
+
 node *parse_term(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
 
@@ -481,24 +507,42 @@ node *parse_term(token_array *arr) {
     node *id = create_node(node_id, curr->row, curr->column);
     id->as.ident.name = strduplicate(curr->data);
     skip_token(arr);
+    curr = peek_token_array(arr, 0);
+    if (curr->type == TOKEN_DOT)
+      id = parse_member(arr, id);
     return id;
   } else if (curr->type == TOKEN_INT_LITERAL) {
     node *lit = create_node(node_lit, curr->row, curr->column);
     lit->as.lit.type = TYPE_INT;
     lit->as.lit.i = curr->data ? atoi(curr->data) : 0;
+
     skip_token(arr);
+    curr = peek_token_array(arr, 0);
+    if (curr->type == TOKEN_DOT)
+      lit = parse_member(arr, lit);
+
     return lit;
   } else if (TOKEN_DOUBLE_LITERAL == curr->type) {
     node *lit = create_node(node_lit, curr->row, curr->column);
     lit->as.lit.d = atof(curr->data);
     lit->as.lit.type = TYPE_DOUBLE;
     skip_token(arr);
+
+    curr = peek_token_array(arr, 0);
+    if (curr->type == TOKEN_DOT)
+      lit = parse_member(arr, lit);
+
     return lit;
   } else if (TOKEN_STRING_LITERAL == curr->type) {
     node *lit = create_node(node_lit, curr->row, curr->column);
     lit->as.lit.s = strduplicate(curr->data);
     lit->as.lit.type = TYPE_STRING;
+
     skip_token(arr);
+    curr = peek_token_array(arr, 0);
+    if (curr->type == TOKEN_DOT)
+      lit = parse_member(arr, lit);
+
     return lit;
   } else
     print_error("Syntax error, expected expression", ERR_SYNTAX, curr->row,
@@ -888,6 +932,12 @@ node *parse_block(token_array *arr, bool indent) {
   Token *curr = peek_token_array(arr, 0);
   node *bl = create_node(node_block, curr->row, curr->column);
   node *nn = NULL;
+
+  while (curr->type == TOKEN_EOL) {
+    skip_token(arr);
+    curr = peek_token_array(arr, 0);
+  }
+
   do {
     if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
       nn = parse_val_var(arr, curr);
@@ -1114,9 +1164,10 @@ void parse_params(token_array *arr, node *n) {
 }
 
 // parses head of a function: (n: Int):Int =
-void parse_function_header(token_array *arr, node *n) {
+bool parse_function_header(token_array *arr, node *n) {
   data_types type;
   bool explicit = false;
+  bool was_eol = false;
 
   Token *curr = peek_token_array(arr, 0);
   if (curr->type != TOKEN_IDENTIFIER || curr->data == NULL)
@@ -1165,19 +1216,21 @@ void parse_function_header(token_array *arr, node *n) {
   if (curr->type == TOKEN_EOL && curr->data == NULL) {
     skip_token(arr);
     curr = peek_token_array(arr, 0);
+    was_eol = true;
   }
 
   n->as.function.body = parse_function_body(arr);
-  return;
+  return was_eol;
 }
 
 // parses def function
 node *parse_def(token_array *arr, Token *curr) {
   node *n = create_node(node_function, curr->row, curr->column);
+  bool eol;
 
   if (curr->type == TOKEN_KW_DEF) {
     skip_token(arr);
-    parse_function_header(arr, n);
+    eol = parse_function_header(arr, n);
   } else
     print_error("Syntax error", ERR_SYNTAX, arr->token_data[arr->pos].row,
                 arr->token_data[arr->pos].column);

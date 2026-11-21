@@ -95,11 +95,16 @@ struct node {
       int size;
       int cap;
     } call;
+    struct {
+      node *obj;
+      char *name;
+    } member; // VALMEM EXTENTION
   } as;
 };
 
 // prints error message and exists with error code
-static inline void print_error(const char *message, int error_code, int row, int column) {
+static inline void print_error(const char *message, int error_code, int row,
+                               int column) {
   fprintf(stderr, "%s at row %i column %i\n", message, row, column);
   exit(error_code);
 }
