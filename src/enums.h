@@ -36,7 +36,8 @@ typedef enum {
   node_unar,
   node_binar,
   node_call,
-  node_member
+  node_member,
+  node_extension
 } node_type;
 
 typedef enum {
@@ -87,6 +88,7 @@ typedef enum {
   TOKEN_KW_RETURN,
   TOKEN_KW_WHILE,
   TOKEN_KW_THEN,
+  TOKEN_KW_EXTENSION, // EXTKW extention
 
   TOKEN_OP_PLUS,    // +
   TOKEN_OP_MINUS,   // -

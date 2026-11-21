@@ -102,6 +102,12 @@ struct node {
       node *obj;
       char *name;
     } member; // VALMEM EXTENTION
+    struct {
+      char *reciever;
+      data_types type;
+      node **methods;
+      int size;
+    } extension // EXTKW extention
   } as;
 };
 

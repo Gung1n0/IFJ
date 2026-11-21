@@ -23,7 +23,8 @@ bool is_keyword(Token *t) {
          t->type == TOKEN_KW_UNIT || t->type == TOKEN_KW_VAL ||
          t->type == TOKEN_KW_VAR || t->type == TOKEN_KW_RETURN ||
          t->type == TOKEN_KW_WHILE || t->type == TOKEN_KW_THEN ||
-         t->type == TOKEN_KW_DOUBLE || t->type == TOKEN_KW_STRING;
+         t->type == TOKEN_KW_DOUBLE || t->type == TOKEN_KW_STRING ||
+         t->type == TOKEN_KW_EXTENSION;
 }
 
 const char *token_name(TokenType type) {
@@ -307,6 +308,10 @@ void free_node(node *n) {
   case node_member:
     free(n->as.member.name);
     free_node(n->as.member.obj);
+    break;
+  case node_extension:
+    free_node(n->as.extension.methods);
+    free(n->as.extension.reciever);
   }
   free(n);
 }
@@ -1291,6 +1296,50 @@ node *parse_main(token_array *arr, Token *curr) {
   return NULL;
 }
 
+node *parse_extension(token_array *arr) { // EXTKW extention
+  Token *curr = peek_token_array(arr, 0);
+  node *ext = create_node(node_extension, curr->row, curr->column);
+  get_token_from_array(arr, TOKEN_KW_EXTENSION, NULL);
+  get_token_from_array(arr, TOKEN_LPAR, NULL);
+  curr = peek_token_array(arr, 0);
+  if (curr->type != TOKEN_IDENTIFIER)
+    print_error("Syntax error, expected identifier", ERR_SYNTAX, curr->row,
+                curr->column);
+  ext->as.extension.reciever = strduplicate(curr->data);
+  skip_token(arr);
+  get_token_from_array(arr, TOKEN_COLON, NULL);
+  curr = peek_token_array(arr, 0);
+  if (parse_type(curr) == TYPE_UNKNOWN)
+    print_error("Syntax error, expected data type", ERR_SYNTAX, curr->row,
+                curr->column);
+  ext->as.extension.type = parse_type(curr);
+  skip_token(arr);
+  get_token_from_array(arr, TOKEN_RPAR, NULL);
+  get_token_from_array(arr, TOKEN_EOL, NULL);
+  get_token_from_array(arr, TOKEN_IND, NULL);
+
+  curr = peek_token_array(arr, 0);
+  ext->as.extension.size = 0;
+  while (curr->type != TOKEN_DED) {
+    if (curr->type == TOKEN_EOL)
+      skip_token(arr);
+    else if (curr->type == TOKEN_KW_DEF) {
+      node **temp = realloc(ext->as.extension.methods,
+                            sizeof(node *) * (ext->as.extension.size + 1));
+      if (temp == NULL)
+        print_error("Malloc failed", ERR_INTERNAL, 0, 0);
+      ext->as.extension.methods = temp;
+      ext->as.extension.methods[ext->as.extension.size] = parse_def(arr, curr);
+      ext->as.extension.size++;
+    } else
+      print_error("Syntax error, expected def", ERR_SYNTAX, curr->row,
+                  curr->column);
+    curr = peek_token_array(arr, 0);
+  }
+  skip_token(arr);
+  return ext;
+}
+
 //
 node *parse_program(token_array *arr) {
   parse_prologue(arr);
@@ -1307,6 +1356,8 @@ node *parse_program(token_array *arr) {
       f = parse_main(arr, curr);
     } else if (curr->type == TOKEN_EOL)
       skip_token(arr);
+    else if (curr->type == TOKEN_KW_EXTENSION)
+      f = parse_extension(arr);
     else
       print_error("Syntax error", ERR_SYNTAX, arr->token_data[arr->pos].row,
                   arr->token_data[arr->pos].column);
