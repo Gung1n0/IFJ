@@ -342,6 +342,15 @@ static char *gen_library[] = {
     "pushs GF@$result",
     "return",
 
+    // boolthen ext
+    "label fn$readBoolean",
+    "read GF@$result bool",
+    "jumpifneq fn$readBoolean$ok GF@$result nil@nil",
+    "move GF@$result bool@false",
+    "label fn$readBoolean$ok",
+    "pushs GF@$result",
+    "return",
+
     // convert to string - unit, int, float
     "label fn$toStr",
     "pops GF@$left",
@@ -349,6 +358,7 @@ static char *gen_library[] = {
     "jumpifeq fn$toStr$unit GF@$left_type string@nil",
     "jumpifeq fn$toStr$int GF@$left_type string@int",
     "jumpifeq fn$toStr$float GF@$left_type string@float",
+    "jumpifeq fn$toStr$bool GF@$left_type string@bool",
     "pushs GF@$left",
     "return",
     "label fn$toStr$unit",
@@ -361,6 +371,13 @@ static char *gen_library[] = {
     "label fn$toStr$float",
     "float2str GF@$result GF@$left",
     "pushs GF@$result",
+    "return",
+    "label fn$toStr$bool",
+    "jumpifeq fn$toStr$bool$true GF@$left bool@true",
+    "pushs string@false",
+    "return",
+    "label fn$toStr$bool$true",
+    "pushs string@true",
     "return",
 
     // substring
@@ -452,7 +469,10 @@ static void literal_generate(node *lit) {
     pushs_(operand_string(lit->as.lit.s));
   } else if (lit->as.lit.type == TYPE_UNIT) {
     pushs_(operand_nil());
-  } else {
+  } else if(lit->as.lit.type == TYPE_BOOLEAN){
+    pushs_(operand_bool(lit->as.lit.i != 0));
+  }
+  else {
     gen_error(ERR_INTERNAL, lit);
   }
 }
@@ -463,11 +483,16 @@ static void identifier_generate(node *id) {
 
 // generates code for unary operations
 static void unary_generate(gen_context *ctx, node *expr) {
-  if (expr->as.unar.op != OP_NEGATE) {
+  if (expr->as.unar.op != OP_NEGATE && expr->as.unar.op != OP_NOT) {
     gen_error(ERR_INTERNAL, expr);
   }
 
   expression_generate(ctx, expr->as.unar.operand);
+  if(expr->as.unar.op == OP_NOT){
+    nots_();
+    return;
+  }
+
   if (expr->data_type == TYPE_DOUBLE) {
     pushs_(operand_float(-1.0));
   } else {
@@ -476,6 +501,16 @@ static void unary_generate(gen_context *ctx, node *expr) {
   muls_();
 }
 
+// TODO: boolthen generation function
+//
+//
+//
+//
+
+
+
+
+
 // generates code for binary operations
 static void binary_generate(gen_context *ctx, node *expr) {
 
@@ -483,6 +518,10 @@ static void binary_generate(gen_context *ctx, node *expr) {
   expression_generate(ctx, expr->as.binar.right);
   operator bin_operator = expr->as.binar.op;
 
+  // boolthen ext
+  // if (expr->as.binar.op == OP_AND || expr->as.binar.op == OP_OR) {
+  //   logic_generate(ctx, expr);
+  // }
   if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
     concat_();
   } else if (bin_operator == OP_ADD) {
