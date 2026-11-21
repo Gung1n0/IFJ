@@ -79,6 +79,7 @@ struct node {
       int i;
       double d;
       char *s;
+      bool b; // BOOLTHEN extention
     } lit;
     struct {
       char *name;
@@ -97,6 +98,8 @@ struct node {
       node **items;
       int size;
       int cap;
+      int lists_count; // EXTKW extention
+      int *list_sizes; // EXTKW extention
     } call;
     struct {
       node *obj;
@@ -120,6 +123,7 @@ static inline void print_error(const char *message, int error_code, int row,
 
 typedef struct {
   item_type type;
+  operator oper; // však periem
   union {
     node *n;
     int term;

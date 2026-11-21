@@ -53,7 +53,10 @@ typedef enum {
   OP_GREATER,
   OP_GREATER_OR_EQUAL,
   OP_NOT_EQUAL,
-  OP_NONE
+  OP_NONE,
+  OP_NOT, // BOOLTHEN extention
+  OP_AND, // BOOLTHEN extention
+  OP_OR   // BOOLTHEN extention
 } operator;
 
 typedef enum {
@@ -89,6 +92,7 @@ typedef enum {
   TOKEN_KW_WHILE,
   TOKEN_KW_THEN,
   TOKEN_KW_EXTENSION, // EXTKW extention
+  TOKEN_KW_BOOLEAN,   // BOOLTHEN extention
 
   TOKEN_OP_PLUS,    // +
   TOKEN_OP_MINUS,   // -
@@ -110,6 +114,12 @@ typedef enum {
   TOKEN_DOT,   // .
   TOKEN_AT,    // @
   TOKEN_SEMICOLON,
+
+  TOKEN_TRUE,  // BOOLTHEN extention
+  TOKEN_FALSE, // BOOLTHEN extention
+  TOKEN_AND,   // BOOLTHEN extention
+  TOKEN_OR,    // BOOLTHEN extention
+  TOKEN_NOT,   // BOOLTHEN extention
 
   TOKEN_EOL,
   TOKEN_EOF,
