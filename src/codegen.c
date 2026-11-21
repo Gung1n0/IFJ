@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ast.h"
 #include "codegen.h"
@@ -422,6 +423,18 @@ static char *gen_library[] = {
     "pushs int@-1",
     "return",
 
+    // ext valmem
+    "label $floor",
+    "pops GF@$left",
+    "float2int GF@$index GF@$left",
+    "int2float GF@$result GF@$index",
+    "gt GF@$flag GF@$result GF@$left",
+    "jumpifeq $floor$done GF@$flag bool@false",
+    "sub GF@$result GF@$result float@0x0p+1",
+    "label $floor$done",
+    "pushs GF@$result",
+    "return",
+
     NULL,
 
 };
@@ -510,6 +523,29 @@ static void call_generate(gen_context *ctx, node *call) {
   call_(operand_function(call->as.call.name, NULL));
 }
 
+// function for valmem extension
+static void valmem_generate(gen_context *ctx, node *expr) {
+  char *valmem =
+      expr->as.valmem.name; // temporary variables ast.h is not updated
+  expression_generate(ctx, expr->as.valmem.obj);
+
+  if (strcmp(valmem, "toInt") == 0) {
+    call_(operand_function("toInt", NULL));
+  } 
+  else if (strcmp(valmem, "toString") == 0) {
+    call_(operand_function("toString", NULL));
+  } 
+  else if (strcmp(valmem, "length")== 0){
+    call_(operand_function("strLength", NULL));
+  }
+  else if (strcmp(valmem, "floor")== 0){
+    printf("call $floor\n")
+  }
+  else {
+    gen_error(ERR_INTERNAL, expr);
+  }
+}
+
 // generated expression will be on top of stack
 static void expression_generate(gen_context *ctx, node *expr) {
   if (expr->type == node_lit) {
@@ -524,7 +560,10 @@ static void expression_generate(gen_context *ctx, node *expr) {
     binary_generate(ctx, expr);
   } else if (expr->type == node_unar) {
     unary_generate(ctx, expr);
-  } else {
+  } else if (expr->type == node_valmem) { // temporary node 
+    valem_generate(ctx, expr);
+  }
+  else {
     gen_error(ERR_INTERNAL, expr);
   }
   if (expr->convert_to_double) {
