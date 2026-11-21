@@ -526,8 +526,8 @@ static void call_generate(gen_context *ctx, node *call) {
 // function for valmem extension
 static void valmem_generate(gen_context *ctx, node *expr) {
   char *valmem =
-      expr->as.valmem.name; // temporary variables ast.h is not updated
-  expression_generate(ctx, expr->as.valmem.obj);
+      expr->as.member.name;
+  expression_generate(ctx, expr->as.member.obj);
 
   if (strcmp(valmem, "toInt") == 0) {
     call_(operand_function("toInt", NULL));
@@ -560,8 +560,8 @@ static void expression_generate(gen_context *ctx, node *expr) {
     binary_generate(ctx, expr);
   } else if (expr->type == node_unar) {
     unary_generate(ctx, expr);
-  } else if (expr->type == node_valmem) { // temporary node 
-    valem_generate(ctx, expr);
+  } else if (expr->type == node_member) {
+    valmem_generate(ctx, expr);
   }
   else {
     gen_error(ERR_INTERNAL, expr);
