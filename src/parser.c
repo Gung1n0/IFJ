@@ -785,7 +785,8 @@ node *parse_call(token_array *arr) {
   call->as.call.size = 0;
 
   int last_comma = 0;
-  while (TOKEN_RPAR != curr->type) {
+  bool next_p;
+  while (TOKEN_RPAR != curr->type || next_p) {
     if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
         curr->type == TOKEN_DOUBLE_LITERAL ||
         curr->type == TOKEN_STRING_LITERAL ||
@@ -808,8 +809,14 @@ node *parse_call(token_array *arr) {
         print_error("Syntax error, expected identifier or literal", ERR_SYNTAX,
                     curr->row, curr->column);
     } else if (curr->type == TOKEN_COMMA) {
-      if (peek_token_array(arr, 1)->type == TOKEN_RPAR)
-        last_comma = arr->pos;
+      if (peek_token_array(arr, 1)->type == TOKEN_RPAR) {
+        if (peek_token_array(arr, 2)->type == TOKEN_LPAR)
+          next_p = true;
+        else {
+          next_p = false;
+          last_comma = arr->pos;
+        }
+      }
 
       if (peek_token_array(arr, 1)->type == TOKEN_COMMA)
         print_error("Syntax error, unexpected ','", ERR_SYNTAX,
@@ -820,8 +827,8 @@ node *parse_call(token_array *arr) {
       curr = peek_token_array(arr, 0);
       continue;
     } else {
-      print_error("Syntax error, expected identifier or liberal", ERR_SYNTAX,
-                  curr->row, curr->column); // big hehe
+      print_error("Syntax error, expected identifier or literal", ERR_SYNTAX,
+                  curr->row, curr->column);
     }
   }
 
@@ -1095,12 +1102,10 @@ node *parse_if(token_array *arr) {
   return if_else;
 }
 
-bool check_bracket(Token *curr) { return curr->type != TOKEN_RPAR; }
-
 void parse_params(token_array *arr, node *n) {
   Token *curr = peek_token_array(arr, 0);
 
-  while (check_bracket(curr)) {
+  while (curr->type != TOKEN_RPAR) {
     if (curr->data != NULL) {
       if (curr->type == TOKEN_IDENTIFIER) {
         int row1 = curr->row;
@@ -1136,6 +1141,9 @@ void parse_params(token_array *arr, node *n) {
         n->as.function.params[n->as.function.param_count - 1].row = row1;
         n->as.function.params[n->as.function.param_count - 1].column = collumn1;
 
+        n->as.function.params[n->as.function.param_count - 1].list =
+            n->as.function.lists_count;
+
         skip_token(arr);
         curr = peek_token_array(arr, 0);
 
@@ -1152,6 +1160,12 @@ void parse_params(token_array *arr, node *n) {
         } else if (curr->type != TOKEN_RPAR)
           print_error("Syntax error, expected ',' or ')'", ERR_SYNTAX,
                       curr->row, curr->column);
+        skip_token(arr);
+        curr = peek_token_array(arr, 0);
+        while (curr->type == TOKEN_EOL) {
+          skip_token(arr);
+          curr = peek_token_array(arr, 0);
+        }
       } else
         print_error("Syntax error, expected identifier", ERR_SYNTAX,
                     arr->token_data[arr->pos].row,
@@ -1176,17 +1190,19 @@ bool parse_function_header(token_array *arr, node *n) {
                 arr->token_data[arr->pos].column);
 
   n->as.function.name = strduplicate(curr->data);
+  n->as.function.lists_count = 0;
   skip_token(arr);
   curr = &arr->token_data[arr->pos];
 
-  get_token_from_array(arr, TOKEN_LPAR, NULL);
-
-  curr = peek_token_array(arr, 0);
-  if (curr->type == TOKEN_RPAR) {
-    get_token_from_array(arr, TOKEN_RPAR, NULL);
-  } else {
-    parse_params(arr, n);
-    get_token_from_array(arr, TOKEN_RPAR, NULL);
+  if (curr->type == TOKEN_LPAR) {
+    while (curr->type == TOKEN_LPAR) {
+      skip_token(arr);
+      if (peek_token_array(arr, 0)->type != TOKEN_RPAR)
+        parse_params(arr, n);
+      get_token_from_array(arr, TOKEN_RPAR, NULL);
+      n->as.function.lists_count++;
+      curr = peek_token_array(arr, 0);
+    }
   }
 
   curr = peek_token_array(arr, 0);

@@ -12,6 +12,7 @@ typedef struct {
   data_types types;
   int row;
   int column;
+  int list; // PARAMSLIST extention, idx of list
 } param;
 
 typedef struct node node;
@@ -39,6 +40,8 @@ struct node {
       param *params;
       int param_count;
       node *body;
+      bool no_params;   // paramlistls extention
+      bool lists_count; // paramlistls extention
     } function;
     struct {
       node **items;
