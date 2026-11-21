@@ -32,6 +32,12 @@ op_result binary_operation(operator op, data_types type1, data_types type2);
 /// @return Returns different results depending on the operand
 op_result unary_operation(operator op, data_types operand);
 
+/// @brief Looks up reciever and result data types from member name (part of
+/// VALMEM extension)
+/// @param name Name to look up
+/// @return Returns differnet results depending on which member is looked up
+op_result look_up_member_data_type(char *name);
+
 /// @brief Checks type value can be assigned to type target (e.g. double = int)
 /// @param target Target type
 /// @param value Source type

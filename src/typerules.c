@@ -7,6 +7,13 @@
 
 #include "typerules.h"
 #include "enums.h"
+#include <string.h>
+
+// VALMEM extension
+#define TOSTRING_MEMBER_NAME "toString"
+#define TOINT_MEMBER_NAME "toInt"
+#define FLOOR_MEMBER_NAME "floor"
+#define LENGTH_MEMBER_NAME "length"
 
 /// @brief Checks, if 2 data types are numeric (INT / DOUBLE)
 /// @param type1 Operand type 1 to check
@@ -99,6 +106,20 @@ op_result unary_operation(operator op, data_types operand) {
       return (op_result){true, TYPE_BOOLEAN, TYPE_BOOLEAN};
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   }
+  return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+}
+
+/// @brief Looks up reciever and result data types from member name (part of
+/// VALMEM extension)
+op_result look_up_member_data_type(char *name) {
+  if (strcmp(name, TOSTRING_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_STRING, TYPE_ANY};
+  if (strcmp(name, TOINT_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_INT, TYPE_DOUBLE};
+  if (strcmp(name, FLOOR_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_DOUBLE, TYPE_DOUBLE};
+  if (strcmp(name, LENGTH_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_INT, TYPE_STRING};
   return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
 }
 

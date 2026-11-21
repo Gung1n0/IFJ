@@ -243,6 +243,23 @@ static data_types compute_expression_type(sem_context *c, node *n) {
   }
   case node_call:
     return analyze_call(c, n);
+  // VALMEM extension
+  case node_member: {
+    data_types reciever_type = analyze_expressions(c, n->as.member.obj);
+    op_result member_results = look_up_member_data_type(n->as.member.name);
+
+    if (!member_results.ok)
+      sem_error(ERR_UNDEFINED, n);
+
+    if (member_results.operand_type == TYPE_ANY &&
+        is_valid_variable_type(reciever_type))
+      return member_results.result_type;
+
+    if (member_results.operand_type != reciever_type)
+      sem_error(ERR_TYPES, n);
+
+    return member_results.result_type;
+  }
   default:
     sem_error(ERR_INTERNAL, n);
   }
