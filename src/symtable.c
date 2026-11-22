@@ -96,6 +96,7 @@ static void free_function_entry(sym_function *f) {
       free(f->parameters[j].name);
     free(f->parameters);
   }
+  free(f->list_sizes);
   free(f->locals);
   free(f->name);
   free(f);
@@ -107,11 +108,13 @@ static void free_function_entry(sym_function *f) {
 /// @param params Parameter array of the function
 /// @param param_count Number of parameters of the function
 /// @param return_value Return value of the function
+/// @param list_sizes Size of lists (for PARAMLISTS extension)
 /// @return Returns error code, signaling success
 static error_code register_built_in_function(sym_table *t, const char *name,
                                              const sym_parameter *params,
                                              int param_count,
-                                             data_types return_value) {
+                                             data_types return_value,
+                                             int list_sizes) {
   sym_function *function = calloc(1, sizeof(sym_function));
   if (function == NULL)
     return ERR_INTERNAL;
@@ -140,6 +143,20 @@ static error_code register_built_in_function(sym_table *t, const char *name,
     }
   }
 
+  // PARAMLISTS
+  function->lists_count = DEFAULT_LIST_COUNT;
+  function->list_sizes = calloc(function->lists_count, sizeof(int));
+
+  if (function->list_sizes == NULL) {
+    free_function_entry(function);
+    return ERR_INTERNAL;
+  }
+
+  // runs only once, since all functions only have 1 list, but could in theory
+  // support functions with multiple lists
+  for (int i = 0; i < function->lists_count; i++)
+    function->list_sizes[i] = list_sizes;
+
   function->parameter_count = param_count;
   function->has_explicit_return_type = true;
   function->return_type = return_value;
@@ -152,25 +169,25 @@ static error_code register_built_in_function(sym_table *t, const char *name,
   return code;
 }
 
-#define REGISTER_BUILTIN(P)                                                    \
+#define REGISTER_BUILTIN(P, LIST_SIZES)                                        \
   register_built_in_function(t, P##_NAME, P##_PARAMS, P##_PARAM_COUNT,         \
-                             P##_RETURN)
+                             P##_RETURN, LIST_SIZES)
 /// @brief Function, that takes in data from bulitins.h and runs
 /// register_built_in_function for each function
 /// @param t Table, into which all functions should be registered
 /// @return Returns true all functions have been successfully registered
 static bool register_all_built_in_functions(sym_table *t) {
-  return REGISTER_BUILTIN(PRINT) == ERR_NONE &&
-         REGISTER_BUILTIN(READLINE) == ERR_NONE &&
-         REGISTER_BUILTIN(READINT) == ERR_NONE &&
-         REGISTER_BUILTIN(READDOUBLE) == ERR_NONE &&
-         REGISTER_BUILTIN(TOSTR) == ERR_NONE &&
-         REGISTER_BUILTIN(TOINT) == ERR_NONE &&
-         REGISTER_BUILTIN(STRLENGTH) == ERR_NONE &&
-         REGISTER_BUILTIN(SUBSTR) == ERR_NONE &&
-         REGISTER_BUILTIN(ORD) == ERR_NONE &&
-         REGISTER_BUILTIN(CHR) == ERR_NONE &&
-         REGISTER_BUILTIN(READBOOL) == ERR_NONE;
+  return REGISTER_BUILTIN(PRINT, 1) == ERR_NONE &&
+         REGISTER_BUILTIN(READLINE, 0) == ERR_NONE &&
+         REGISTER_BUILTIN(READINT, 0) == ERR_NONE &&
+         REGISTER_BUILTIN(READDOUBLE, 0) == ERR_NONE &&
+         REGISTER_BUILTIN(TOSTR, 1) == ERR_NONE &&
+         REGISTER_BUILTIN(TOINT, 1) == ERR_NONE &&
+         REGISTER_BUILTIN(STRLENGTH, 1) == ERR_NONE &&
+         REGISTER_BUILTIN(SUBSTR, 3) == ERR_NONE &&
+         REGISTER_BUILTIN(ORD, 2) == ERR_NONE &&
+         REGISTER_BUILTIN(CHR, 1) == ERR_NONE &&
+         REGISTER_BUILTIN(READBOOL, 0) == ERR_NONE;
 }
 
 /// @brief Initializes sym_scope_data

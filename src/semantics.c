@@ -213,8 +213,29 @@ static data_types compute_expression_type(sem_context *c, node *n) {
     return n->as.lit.type;
   case node_id: {
     sym_variable *var = sym_lookup_variable(c->table, n->as.ident.name);
-    if (var == NULL)
-      sem_error(ERR_UNDEFINED, n);
+    if (var == NULL) {
+      // PARAMLISTS
+      sym_function *func = sym_lookup_function(c->table, n->as.ident.name);
+      if (func == NULL)
+        sem_error(ERR_UNDEFINED, n);
+      if (func->lists_count != 0)
+        sem_error(ERR_ARGUMENTS, n);
+
+      // transform node_id to node_call
+      char *tmp_name = n->as.ident.name;
+
+      n->type = node_call;
+
+      n->as.call.name = tmp_name;
+      n->as.call.items = NULL;
+      n->as.call.size = 0;
+      n->as.call.cap = 0;
+      n->as.call.lists_count = 0;
+      n->as.call.list_sizes = NULL;
+
+      return analyze_call(c, n);
+    }
+
     n->var = var;
     return var->data_type;
   }
@@ -291,6 +312,14 @@ static data_types analyze_call(sem_context *c, node *n) {
 
   if (n->as.call.size != function->parameter_count)
     sem_error(ERR_ARGUMENTS, n);
+
+  // PARAMLISTS, check if lists match
+  if (function->lists_count != n->as.call.lists_count)
+    sem_error(ERR_ARGUMENTS, n);
+
+  for (int i = 0; i < function->lists_count; i++)
+    if (function->list_sizes[i] != n->as.call.list_sizes[i])
+      sem_error(ERR_ARGUMENTS, n);
 
   n->func = function;
   record_call_edge(c->current_function_entry, function, n);
@@ -541,6 +570,24 @@ static void declare_function(sym_table *t, node *f) {
       sem_error(ERR_ARGUMENTS, f);
 
     main_counter++;
+  }
+
+  // PARAMLISTS
+  function->lists_count = f->as.function.lists_count;
+  function->list_sizes = NULL;
+
+  if (function->lists_count > 0) {
+    function->list_sizes = calloc(function->lists_count, sizeof(int));
+    if (function->list_sizes == NULL)
+      sem_error(ERR_INTERNAL, f);
+
+    for (int p_index = 0; p_index < f->as.function.param_count; p_index++) {
+      int list_index = f->as.function.params[p_index].list;
+      if (list_index < 0 || list_index >= function->lists_count)
+        sem_error(ERR_INTERNAL, f);
+
+      function->list_sizes[list_index]++;
+    }
   }
 
   error_code code = sym_declare_function(t, function, f);
