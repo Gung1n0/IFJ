@@ -40,8 +40,8 @@ struct node {
       param *params;
       int param_count;
       node *body;
-      bool no_params;   // paramlistls extention
-      bool lists_count; // paramlistls extention
+      bool no_params;  // paramlistls extention
+      int lists_count; // paramlistls extention
     } function;
     struct {
       node **items;
@@ -110,7 +110,7 @@ struct node {
       data_types type;
       node **methods;
       int size;
-    } extension // EXTKW extention
+    } extension; // EXTKW extention
   } as;
 };
 

@@ -6,6 +6,8 @@
 
 node *parse_while(token_array *arr);
 node *parse_if(token_array *arr);
+node *parse_call(token_array *arr);
+node *parse_expr(token_array *arr);
 
 // duplicate string
 char *strduplicate(const char *s) {
@@ -317,8 +319,8 @@ void free_node(node *n) {
         free_node(n->as.call.items[i]);
       }
       free(n->as.call.items);
-      free(n->as.call.list_sizes);
     }
+    free(n->as.call.list_sizes);
     break;
   case node_member:
     free(n->as.member.name);
@@ -454,11 +456,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
     next = peek_token_array(arr, 1);
 
   if (next == NULL)
-    print_error("Syntax error, expected literal", ERR_SYNTAX, next->row,
-                next->column);
-
-  if (curr->type == TOKEN_IDENTIFIER && next->type == TOKEN_LPAR)
-    print_error("didnt expect function here", ERR_SYNTAX, curr->row,
+    print_error("Syntax error, expected literal", ERR_SYNTAX, curr->row,
                 curr->column);
 
   if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
@@ -723,6 +721,14 @@ void reduce_stack(stack *st, Token *curr) {
   stack_add(si, st);
 }
 
+node *parse_operand(token_array *arr) {
+  Token *curr = peek_token_array(arr, 0);
+  if (curr->type == TOKEN_IDENTIFIER &&
+      peek_token_array(arr, 1)->type == TOKEN_LPAR)
+    return parse_call(arr);
+  return parse_term(arr);
+}
+
 node *parse_expr(token_array *arr) {
   stack *st = stack_init(2);
 
@@ -752,7 +758,7 @@ node *parse_expr(token_array *arr) {
         }
 
         si = create_stack_item(node_item);
-        si->ast.n = parse_term(arr);
+        si->ast.n = parse_operand(arr);
 
         stack_add(si, st);
       } else {
@@ -856,28 +862,7 @@ node *parse_call(token_array *arr) {
                   curr->column);
 
     while (curr->type != TOKEN_RPAR) {
-      if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
-          curr->type == TOKEN_DOUBLE_LITERAL ||
-          curr->type == TOKEN_STRING_LITERAL ||
-          (curr->type == TOKEN_LPAR &&
-           peek_token_array(arr, 1)->type == TOKEN_RPAR)) {
-        if (curr->data == NULL && curr->type != TOKEN_LPAR)
-          print_error("Syntax error, expected identifier", ERR_SYNTAX,
-                      curr->row, curr->column);
-
-        node **temp = realloc(call->as.call.items,
-                              sizeof(node *) * (call->as.call.size + 1));
-        if (temp == NULL)
-          print_error("Internal error, Malloc failed", ERR_INTERNAL, 0, 0);
-        node *argument = parse_term(arr);
-        call->as.call.items = temp;
-        call->as.call.size++;
-        call->as.call.items[call->as.call.size - 1] = argument;
-        curr = peek_token_array(arr, 0);
-        if (curr->type != TOKEN_COMMA && curr->type != TOKEN_RPAR)
-          print_error("Syntax error, expected identifier or literal",
-                      ERR_SYNTAX, curr->row, curr->column);
-      } else if (curr->type == TOKEN_COMMA) {
+      if (curr->type == TOKEN_COMMA) {
         if (peek_token_array(arr, 1)->type == TOKEN_RPAR)
           last_comma = arr->pos;
 
@@ -890,8 +875,22 @@ node *parse_call(token_array *arr) {
         curr = peek_token_array(arr, 0);
         continue;
       } else {
-        print_error("Syntax error, expected identifier or literal", ERR_SYNTAX,
-                    curr->row, curr->column);
+        if (curr->data == NULL && curr->type != TOKEN_LPAR)
+          print_error("Syntax error, expected identifier", ERR_SYNTAX,
+                      curr->row, curr->column);
+
+        node **temp = realloc(call->as.call.items,
+                              sizeof(node *) * (call->as.call.size + 1));
+        if (temp == NULL)
+          print_error("Internal error, Malloc failed", ERR_INTERNAL, 0, 0);
+        node *argument = parse_expr(arr);
+        call->as.call.items = temp;
+        call->as.call.size++;
+        call->as.call.items[call->as.call.size - 1] = argument;
+        curr = peek_token_array(arr, 0);
+        if (curr->type != TOKEN_COMMA && curr->type != TOKEN_RPAR)
+          print_error("Syntax error, expected identifier or literal",
+                      ERR_SYNTAX, curr->row, curr->column);
       }
     }
     get_token_from_array(arr, TOKEN_RPAR, NULL);
@@ -1020,6 +1019,10 @@ node *parse_block(token_array *arr, bool indent) {
     curr = peek_token_array(arr, 0);
   }
 
+  if (indent && curr->type == TOKEN_DED)
+    print_error("Syntax error, empty block", ERR_SYNTAX, curr->row,
+                curr->column);
+
   do {
     if (curr->type == TOKEN_KW_VAL || curr->type == TOKEN_KW_VAR)
       nn = parse_val_var(arr, curr);
@@ -1111,25 +1114,6 @@ node *parse_block(token_array *arr, bool indent) {
   } while (indent && curr->type != TOKEN_DED);
   if (indent)
     skip_token(arr);
-  return bl;
-}
-
-node *parse_function_body(token_array *arr) {
-  node *bl = NULL;
-  Token *curr = peek_token_array(arr, 0);
-  bool indent = false;
-
-  if (curr->type == TOKEN_IND) {
-    indent = true;
-    skip_token(arr);
-    curr = peek_token_array(arr, 0);
-  }
-
-  if (curr->type == TOKEN_DED && indent)
-    print_error("Syntax error, empty block", ERR_SYNTAX, curr->row,
-                curr->column);
-
-  bl = parse_block(arr, indent);
   return bl;
 }
 
@@ -1241,12 +1225,6 @@ void parse_params(token_array *arr, node *n) {
         } else if (curr->type != TOKEN_RPAR)
           print_error("Syntax error, expected ',' or ')'", ERR_SYNTAX,
                       curr->row, curr->column);
-        skip_token(arr);
-        curr = peek_token_array(arr, 0);
-        while (curr->type == TOKEN_EOL) {
-          skip_token(arr);
-          curr = peek_token_array(arr, 0);
-        }
       } else
         print_error("Syntax error, expected identifier", ERR_SYNTAX,
                     arr->token_data[arr->pos].row,
@@ -1259,7 +1237,7 @@ void parse_params(token_array *arr, node *n) {
 }
 
 // parses head of a function: (n: Int):Int =
-bool parse_function_header(token_array *arr, node *n) {
+void parse_function_header(token_array *arr, node *n) {
   data_types type;
   bool explicit = false;
   bool was_eol = false;
@@ -1316,18 +1294,21 @@ bool parse_function_header(token_array *arr, node *n) {
     was_eol = true;
   }
 
-  n->as.function.body = parse_function_body(arr);
-  return was_eol;
+  if (was_eol) {
+    get_token_from_array(arr, TOKEN_IND, NULL);
+    n->as.function.body = parse_block(arr, true);
+  } else
+    n->as.function.body = parse_block(arr, false);
+  return;
 }
 
 // parses def function
 node *parse_def(token_array *arr, Token *curr) {
   node *n = create_node(node_function, curr->row, curr->column);
-  bool eol;
 
   if (curr->type == TOKEN_KW_DEF) {
     skip_token(arr);
-    eol = parse_function_header(arr, n);
+    parse_function_header(arr, n);
   } else
     print_error("Syntax error", ERR_SYNTAX, arr->token_data[arr->pos].row,
                 arr->token_data[arr->pos].column);
