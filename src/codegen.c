@@ -447,7 +447,7 @@ static char *gen_library[] = {
     "int2float GF@$result GF@$index",
     "gt GF@$flag GF@$result GF@$left",
     "jumpifeq $floor$done GF@$flag bool@false",
-    "sub GF@$result GF@$result float@0x0p+1",
+    "sub GF@$result GF@$result float@0x1p+0",
     "label $floor$done",
     "pushs GF@$result",
     "return",
@@ -470,7 +470,7 @@ static void literal_generate(node *lit) {
   } else if (lit->as.lit.type == TYPE_UNIT) {
     pushs_(operand_nil());
   } else if (lit->as.lit.type == TYPE_BOOLEAN) {
-    pushs_(operand_bool(lit->as.lit.i != 0));
+    pushs_(operand_bool(lit->as.lit.b != 0));
   } else {
     gen_error(ERR_INTERNAL, lit);
   }
@@ -523,15 +523,18 @@ static void boolthen_generate(gen_context *ctx, node *expr) {
 
 // generates code for binary operations
 static void binary_generate(gen_context *ctx, node *expr) {
-
-  expression_generate(ctx, expr->as.binar.left);
-  expression_generate(ctx, expr->as.binar.right);
   operator bin_operator = expr->as.binar.op;
 
-  if (expr->as.binar.op == OP_AND ||
-      expr->as.binar.op == OP_OR) { // boolthen extension
+  if (expr->as.binar.op == OP_AND || expr->as.binar.op == OP_OR) { 
     boolthen_generate(ctx, expr);
-  } else if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
+    return;
+  }
+  expression_generate(ctx, expr->as.binar.left);
+  expression_generate(ctx, expr->as.binar.right);
+  
+
+  
+  if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
     concat_();
   } else if (bin_operator == OP_ADD) {
     adds_();
@@ -578,12 +581,12 @@ static void valmem_generate(gen_context *ctx, node *expr) {
 
   if (strcmp(valmem, "toInt") == 0) {
     call_(operand_function("toInt", NULL));
-  } else if (strcmp(valmem, "toString") == 0) {
-    call_(operand_function("toString", NULL));
+  } else if (strcmp(valmem, "toStr") == 0) {
+    call_(operand_function("toStr", NULL));
   } else if (strcmp(valmem, "length") == 0) {
     call_(operand_function("strLength", NULL));
   } else if (strcmp(valmem, "floor") == 0) {
-    printf("call $floor\n")
+    printf("call $floor\n");
   } else {
     gen_error(ERR_INTERNAL, expr);
   }
