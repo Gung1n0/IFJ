@@ -469,10 +469,9 @@ static void literal_generate(node *lit) {
     pushs_(operand_string(lit->as.lit.s));
   } else if (lit->as.lit.type == TYPE_UNIT) {
     pushs_(operand_nil());
-  } else if(lit->as.lit.type == TYPE_BOOLEAN){
+  } else if (lit->as.lit.type == TYPE_BOOLEAN) {
     pushs_(operand_bool(lit->as.lit.i != 0));
-  }
-  else {
+  } else {
     gen_error(ERR_INTERNAL, lit);
   }
 }
@@ -488,7 +487,7 @@ static void unary_generate(gen_context *ctx, node *expr) {
   }
 
   expression_generate(ctx, expr->as.unar.operand);
-  if(expr->as.unar.op == OP_NOT){
+  if (expr->as.unar.op == OP_NOT) {
     nots_();
     return;
   }
@@ -501,15 +500,26 @@ static void unary_generate(gen_context *ctx, node *expr) {
   muls_();
 }
 
-// TODO: boolthen generation function
-//
-//
-//
-//
+// boolthen extension
+static void boolthen_generate(gen_context *ctx, node *expr) {
+  int boolthen_label = ctx->label_cnt++;
+  char *type = "and";
+  bool decided = false;
 
+  if (expr->as.binar.op == OP_OR) {
+    type = "or";
+    decided = true;
+  }
 
-
-
+  expression_generate(ctx, expr->as.binar.left);
+  pushs_(operand_bool(decided));
+  jumpifeqs_(operand_numbered(type, boolthen_label, "short"));
+  expression_generate(ctx, expr->as.binar.right);
+  jump_(operand_numbered("end", boolthen_label, "end"));
+  label_(operand_numbered(type, boolthen_label, "short"));
+  pushs_(operand_bool(decided));
+  label_(operand_numbered("end", boolthen_label, "end"));
+}
 
 // generates code for binary operations
 static void binary_generate(gen_context *ctx, node *expr) {
@@ -518,11 +528,10 @@ static void binary_generate(gen_context *ctx, node *expr) {
   expression_generate(ctx, expr->as.binar.right);
   operator bin_operator = expr->as.binar.op;
 
-  // boolthen ext
-  // if (expr->as.binar.op == OP_AND || expr->as.binar.op == OP_OR) {
-  //   logic_generate(ctx, expr);
-  // }
-  if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
+  if (expr->as.binar.op == OP_AND ||
+      expr->as.binar.op == OP_OR) { // boolthen extension
+    boolthen_generate(ctx, expr);
+  } else if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
     concat_();
   } else if (bin_operator == OP_ADD) {
     adds_();
@@ -564,23 +573,18 @@ static void call_generate(gen_context *ctx, node *call) {
 
 // function for valmem extension
 static void valmem_generate(gen_context *ctx, node *expr) {
-  char *valmem =
-      expr->as.member.name;
+  char *valmem = expr->as.member.name;
   expression_generate(ctx, expr->as.member.obj);
 
   if (strcmp(valmem, "toInt") == 0) {
     call_(operand_function("toInt", NULL));
-  } 
-  else if (strcmp(valmem, "toString") == 0) {
+  } else if (strcmp(valmem, "toString") == 0) {
     call_(operand_function("toString", NULL));
-  } 
-  else if (strcmp(valmem, "length")== 0){
+  } else if (strcmp(valmem, "length") == 0) {
     call_(operand_function("strLength", NULL));
-  }
-  else if (strcmp(valmem, "floor")== 0){
+  } else if (strcmp(valmem, "floor") == 0) {
     printf("call $floor\n")
-  }
-  else {
+  } else {
     gen_error(ERR_INTERNAL, expr);
   }
 }
@@ -601,8 +605,7 @@ static void expression_generate(gen_context *ctx, node *expr) {
     unary_generate(ctx, expr);
   } else if (expr->type == node_member) {
     valmem_generate(ctx, expr);
-  }
-  else {
+  } else {
     gen_error(ERR_INTERNAL, expr);
   }
   if (expr->convert_to_double) {
