@@ -55,10 +55,56 @@ static void sem_error(error_code err, node *n) {
   exit(err);
 }
 
+/// @brief Calls sem_error if given pointer is NULL
+/// @param ptr Pointer to be checked
+/// @param n Node to be reported on
+static void print_err_if_null(void *ptr, node *n) {
+  if (ptr == NULL)
+    sem_error(ERR_INTERNAL, n);
+}
+
 /// @brief Helper function, to check if a node is a function node
 /// @param n Node to check
 /// @return Returns true if it is a function node, else false
 static bool is_function_node(node *n) { return n->type == node_function; }
+
+/// @brief Converts data type to a string version, used for EXTKW
+/// @param t Type of variable
+/// @return Returns type of variable in string form
+static const char *type_to_string(data_types t) {
+  switch (t) {
+  case TYPE_INT:
+    return "Int";
+  case TYPE_DOUBLE:
+    return "Double";
+  case TYPE_STRING:
+    return "String";
+  case TYPE_BOOLEAN:
+    return "Boolean";
+  case TYPE_UNIT:
+    return "Unit";
+  default:
+    return "";
+  }
+}
+
+/// @brief Creates name (key) of a extension (EXTKW)
+/// @param t Data type of the reciever, used for creating the name
+/// @param name Name of method
+/// @param err_node Node to report on in case of failiure
+/// @return Returns a string name (key)
+static char *create_method_name(data_types t, const char *name,
+                                node *err_node) {
+  const char *type_name = type_to_string(t);
+  size_t length = strlen(type_name) + 1 + strlen(name) + 1;
+  char *ptr = calloc(length, sizeof(char));
+
+  print_err_if_null(ptr, err_node);
+
+  if (ptr != NULL)
+    snprintf(ptr, length, "%s$%s", type_name, name);
+  return ptr;
+}
 
 /// @brief  Attempts to append a sym_variable pointer to the end of a dynamic
 /// array
@@ -70,8 +116,7 @@ static void append_to_locals_array(sem_context *c, sym_variable *v, node *n) {
   if (index >= c->locals_capacity) {
     c->locals_capacity *= LOCALS_CAPACITY_MULTIPLIER;
     c->locals = realloc(c->locals, c->locals_capacity * sizeof(sym_variable *));
-    if (c->locals == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(c->locals, n);
   }
 
   c->locals[index] = v;
@@ -90,8 +135,7 @@ static sym_parameter param_to_sym_param(node *n, param p) {
   sp.data_type = p.types;
 
   sp.name = strduplicate(p.name);
-  if (sp.name == NULL)
-    sem_error(ERR_INTERNAL, n);
+  print_err_if_null(sp.name, n);
 
   return sp;
 }
@@ -106,8 +150,7 @@ static void record_call_edge(sym_function *from, sym_function *to, node *n) {
   if (edge_count >= edge_capacity) {
     int new_capacity = (edge_capacity == 0) ? 16 : edge_capacity * 2;
     call_edge *tmp = realloc(edges, new_capacity * sizeof(call_edge));
-    if (tmp == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(tmp, n);
     edges = tmp;
     edge_capacity = new_capacity;
   }
@@ -158,21 +201,35 @@ static bool reaches(sym_function *cur, sym_function *target,
 static void check_untyped_recursion(sym_table *table, node *program) {
   // each visited entry is a distinct edge target, so edge_count is enough
   sym_function **visited = calloc(edge_count + 1, sizeof(sym_function *));
-  if (visited == NULL)
-    sem_error(ERR_INTERNAL, program);
+  print_err_if_null(visited, program);
 
   for (int i = 0; i < program->as.program.size; i++) {
     node *current = program->as.program.items[i];
-    sym_function *f = sym_lookup_function(table, current->as.function.name);
-    if (f == NULL)
-      sem_error(ERR_INTERNAL, program);
 
-    if (f->has_explicit_return_type)
-      continue;
+    if (current->type == node_function) {
+      sym_function *f = sym_lookup_function(table, current->as.function.name);
+      print_err_if_null(f, program);
 
-    int visited_count = 0;
-    if (reaches(f, f, visited, &visited_count))
-      sem_error(ERR_TYPES, current);
+      if (f->has_explicit_return_type)
+        continue;
+
+      int visited_count = 0;
+      if (reaches(f, f, visited, &visited_count))
+        sem_error(ERR_TYPES, current);
+    } else if (current->type == node_extension) {
+
+      for (int m_index = 0; m_index < current->as.extension.size; m_index++) {
+        sym_function *m = sym_lookup_function(
+            table, current->as.extension.methods[m_index]->func->name);
+        print_err_if_null(m, program);
+        if (m->has_explicit_return_type)
+          continue;
+
+        int m_visited_count = 0;
+        if (reaches(m, m, visited, &m_visited_count))
+          sem_error(ERR_TYPES, current);
+      }
+    }
   }
 
   free(visited);
@@ -189,13 +246,11 @@ static void mark_conversion(node *value, data_types target) {
 
 static sem_context *init_sem_context(node *n, sym_table *t) {
   sem_context *c = calloc(1, sizeof(sem_context));
-  if (c == NULL)
-    sem_error(ERR_INTERNAL, n);
+  print_err_if_null(c, n);
 
   c->table = t;
   c->locals = calloc(INITIAL_LOCALS_ARRAY_SIZE, sizeof(sym_variable *));
-  if (c->locals == NULL)
-    sem_error(ERR_INTERNAL, n);
+  print_err_if_null(c->locals, n);
 
   c->locals_size = 0;
   c->locals_capacity = INITIAL_LOCALS_ARRAY_SIZE;
@@ -265,19 +320,49 @@ static data_types compute_expression_type(sem_context *c, node *n) {
   case node_call:
     return analyze_call(c, n);
   // VALMEM extension
-  case node_member: {
+  case node_member: { // TODO next
     data_types reciever_type = analyze_expressions(c, n->as.member.obj);
     op_result member_results = look_up_member_data_type(n->as.member.name);
 
-    if (!member_results.ok)
-      sem_error(ERR_UNDEFINED, n);
+    // not a VALMEM method
+    if (member_results.ok) {
+      if (member_results.operand_type == TYPE_ANY &&
+          is_valid_variable_type(reciever_type))
+        return member_results.result_type;
 
-    if (member_results.operand_type == TYPE_ANY &&
-        is_valid_variable_type(reciever_type))
-      return member_results.result_type;
+      if (member_results.operand_type != reciever_type)
+        sem_error(ERR_TYPES, n);
+    } else {
+      // extension
+      char *method_name =
+          create_method_name(reciever_type, n->as.member.name, n);
+      sym_function *func = sym_lookup_function(c->table, method_name);
 
-    if (member_results.operand_type != reciever_type)
-      sem_error(ERR_TYPES, n);
+      // rewirte node into
+      if (func == NULL)
+        sem_error(ERR_UNDEFINED, n);
+
+      node **items = calloc(1, sizeof(node *));
+      int *sizes = calloc(1, sizeof(int));
+
+      print_err_if_null(items, n);
+      print_err_if_null(sizes, n);
+
+      free(n->as.member.name);
+
+      items[0] = n->as.member.obj;
+      sizes[0] = 1;
+
+      n->type = node_call;
+      n->as.call.name = method_name;
+      n->as.call.items = items;
+      n->as.call.size = 1;
+      n->as.call.cap = 1;
+      n->as.call.lists_count = 1;
+      n->as.call.list_sizes = sizes;
+
+      return analyze_call(c, n);
+    }
 
     return member_results.result_type;
   }
@@ -464,16 +549,14 @@ static analysis_result analyze_statement(sem_context *c, node *n) {
 
     // allocate the variable
     sym_variable *var = calloc(1, sizeof(sym_variable));
-    if (var == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(var, n);
 
     var->data_type = final_type;
     var->is_mutable = n->as.val_var.changable;
     var->is_parameter = false;
 
     var->name = strduplicate(n->as.val_var.name);
-    if (var->name == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(var->name, n);
 
     error_code code = sym_declare_variable(c->table, var);
     if (code != ERR_NONE)
@@ -519,27 +602,71 @@ static analysis_result analyze_block(sem_context *c, node *n) {
 /// function (such as there can only be 1 main)
 /// @param t Sym_table, where we store the declared function
 /// @param f Function node to be declared
-static void declare_function(sym_table *t, node *f) {
+/// @param ext EXTKW node, leave NULL for ordinary functions
+static void declare_function(sym_table *t, node *f, node *ext) {
   sym_function *function = calloc(1, sizeof(sym_function));
-  if (function == NULL)
-    sem_error(ERR_INTERNAL, f);
+  print_err_if_null(function, f);
 
-  function->name = strduplicate(f->as.function.name);
-  if (function->name == NULL)
-    sem_error(ERR_INTERNAL, f);
+  bool has_extension = ext != NULL;
+  int extra = has_extension ? 1 : 0;
 
-  function->parameter_count = f->as.function.param_count;
+  function->is_extension = has_extension;
 
-  if (f->as.function.param_count != 0) {
+  if (!has_extension)
+    function->name = strduplicate(f->as.function.name);
+  else
+    function->name =
+        create_method_name(ext->as.extension.type, f->as.function.name, f);
+
+  print_err_if_null(function->name, f);
+
+  // parameters
+  // own parameters + the receiver (for extension methods)
+  function->parameter_count = f->as.function.param_count + extra;
+  function->parameters = NULL;
+
+  if (function->parameter_count != 0) {
     function->parameters =
-        calloc(f->as.function.param_count, sizeof(sym_parameter));
-    if (function->parameters == NULL)
-      sem_error(ERR_INTERNAL, f);
+        calloc(function->parameter_count, sizeof(sym_parameter));
+    print_err_if_null(function->parameters, f);
+
+    if (has_extension) {
+      if (!is_valid_variable_type(ext->as.extension.type))
+        sem_error(ERR_TYPES, ext);
+
+      function->parameters[0].data_type = ext->as.extension.type;
+      function->parameters[0].name = strduplicate(ext->as.extension.reciever);
+      print_err_if_null(function->parameters[0].name, f);
+    }
+
+    // loop over the method's own parameters from 0,
     for (int param_id = 0; param_id < f->as.function.param_count; param_id++)
-      function->parameters[param_id] =
+      function->parameters[param_id + extra] =
           param_to_sym_param(f, f->as.function.params[param_id]);
   }
 
+  // PARAMLISTS
+  function->lists_count = f->as.function.lists_count + extra;
+  function->list_sizes = NULL;
+
+  if (function->lists_count > 0) {
+    function->list_sizes = calloc(function->lists_count, sizeof(int));
+    print_err_if_null(function->list_sizes, f);
+
+    if (has_extension)
+      function->list_sizes[0] = 1; // the receiver's list
+
+    for (int p_index = 0; p_index < f->as.function.param_count; p_index++) {
+      // shift first, then check the index we will actually use
+      int list_index = f->as.function.params[p_index].list + extra;
+      if (list_index < 0 || list_index >= function->lists_count)
+        sem_error(ERR_INTERNAL, f);
+
+      function->list_sizes[list_index]++;
+    }
+  }
+
+  // return type
   function->has_explicit_return_type = f->as.function.explicit;
 
   if (function->has_explicit_return_type) {
@@ -556,6 +683,7 @@ static void declare_function(sym_table *t, node *f) {
   function->is_main = f->as.function.is_main;
   function->is_built_in = false;
 
+  // main
   if (function->is_main) {
     // there can only be 1 main
     if (main_counter >= 1)
@@ -572,31 +700,14 @@ static void declare_function(sym_table *t, node *f) {
     main_counter++;
   }
 
-  // PARAMLISTS
-  function->lists_count = f->as.function.lists_count;
-  function->list_sizes = NULL;
-
-  if (function->lists_count > 0) {
-    function->list_sizes = calloc(function->lists_count, sizeof(int));
-    if (function->list_sizes == NULL)
-      sem_error(ERR_INTERNAL, f);
-
-    for (int p_index = 0; p_index < f->as.function.param_count; p_index++) {
-      int list_index = f->as.function.params[p_index].list;
-      if (list_index < 0 || list_index >= function->lists_count)
-        sem_error(ERR_INTERNAL, f);
-
-      function->list_sizes[list_index]++;
-    }
-  }
-
+  f->func = function;
   error_code code = sym_declare_function(t, function, f);
   if (code != ERR_NONE)
     sem_error(code, f);
 }
-/// @brief Attemps to analyze a function by declaring all of it's parameters as
-/// variables, analyzing it's block (body) to see if the function ever returns
-/// correct data types
+/// @brief Attemps to analyze a function by declaring all of it's parameters
+/// as variables, analyzing it's block (body) to see if the function ever
+/// returns correct data types
 /// @param c Context of the fucntion
 /// @param n Function node
 static void analyze_function(sem_context *c, node *n) {
@@ -608,20 +719,37 @@ static void analyze_function(sem_context *c, node *n) {
   if (!c->current_function_entry->has_explicit_return_type)
     c->current_function_entry->i_state = in_progress;
 
+  if (c->current_function_entry->is_extension) {
+    sym_variable *var = calloc(1, sizeof(sym_variable));
+
+    print_err_if_null(var, n);
+
+    var->is_mutable = false;
+    var->is_parameter = true;
+    var->data_type = c->current_function_entry->parameters[0].data_type;
+    var->name = strduplicate(c->current_function_entry->parameters[0].name);
+
+    print_err_if_null(var->name, n);
+
+    error_code code = sym_declare_variable(c->table, var);
+    if (code != ERR_NONE)
+      sem_error(code, n);
+
+    append_to_locals_array(c, var, n);
+  }
+
   // declare parameters as variables
   for (int param_id = 0; param_id < n->as.function.param_count; param_id++) {
     sym_variable *var = calloc(1, sizeof(sym_variable));
 
-    if (var == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(var, n);
 
     var->is_mutable = false;
     var->is_parameter = true;
     var->data_type = n->as.function.params[param_id].types;
 
     var->name = strduplicate(n->as.function.params[param_id].name);
-    if (var->name == NULL)
-      sem_error(ERR_INTERNAL, n);
+    print_err_if_null(var->name, n);
 
     error_code code = sym_declare_variable(c->table, var);
     if (code != ERR_NONE)
@@ -697,9 +825,16 @@ void sem_analyze(node *program, sym_table *table) {
   for (int i = 0; i < program->as.program.size; i++) {
     node *current = program->as.program.items[i];
     bool is_function = is_function_node(current);
-    if (!is_function)
-      sem_error(ERR_INTERNAL, current);
-    declare_function(table, current);
+
+    if (current->type == node_extension) {
+      // add all methods
+      for (int m = 0; m < current->as.extension.size; m++)
+        declare_function(table, current->as.extension.methods[m], current);
+    } else {
+      if (!is_function)
+        sem_error(ERR_INTERNAL, current);
+      declare_function(table, current, NULL);
+    }
   }
 
   // no main found
@@ -711,21 +846,32 @@ void sem_analyze(node *program, sym_table *table) {
     node *current = program->as.program.items[i];
 
     bool is_function = is_function_node(current);
-    if (!is_function)
-      sem_error(ERR_INTERNAL, current);
 
-    char *function_name = current->as.function.name;
+    if (current->type == node_extension) {
+      // analyze all methods
+      for (int m = 0; m < current->as.extension.size; m++) {
+        char *method_name = current->as.extension.methods[m]->func->name;
+        sym_function *method_entry = sym_lookup_function(table, method_name);
 
-    sym_function *function_entry = sym_lookup_function(table, function_name);
+        print_err_if_null(method_entry, program);
 
-    if (function_entry == NULL)
-      sem_error(ERR_INTERNAL, program);
+        if (!method_entry->has_explicit_return_type &&
+            method_entry->i_state != unvisited)
+          continue;
 
-    if (!function_entry->has_explicit_return_type &&
-        function_entry->i_state != unvisited)
-      continue;
+        analyze_function_entry(table, method_entry);
+      }
+    } else {
+      if (!is_function)
+        sem_error(ERR_INTERNAL, current);
 
-    analyze_function_entry(table, function_entry);
+      sym_function *function_entry = current->func;
+      if (!function_entry->has_explicit_return_type &&
+          function_entry->i_state != unvisited)
+        continue;
+
+      analyze_function_entry(table, current->func);
+    }
   }
   check_untyped_recursion(table, program);
 }

@@ -11,6 +11,9 @@
 #define BUILTIN_PARAM(param_name, param_type)                                  \
   {.name = (param_name), .data_type = (param_type)}
 
+#define DEFAULT_LIST_COUNT 1
+#define DEFAULT_LIST_SIZE 1
+
 // print
 #define PRINT_NAME "print"
 #define PRINT_PARAM_COUNT 1
