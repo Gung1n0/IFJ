@@ -17,7 +17,8 @@ typedef enum {
   OPERAND_FLOAT,
   OPERAND_VARIABLE,
   OPERAND_BOOL,
-  OPERAND_NUMBERED
+  OPERAND_NUMBERED,
+  OPERAND_METHOD
 
 } gen_operand_type;
 
@@ -57,6 +58,12 @@ typedef struct {
       int number;
       char *part;
     } numbered;
+
+    struct {
+      char *type;
+      char *name;
+      char *part;
+    } method;
   } as;
 } gen_operand;
 
@@ -64,7 +71,7 @@ typedef struct {
   node *program;
   node *function;
   int label_cnt;
-
+  char *received_type;
 } gen_context;
 
 // internal error handler
@@ -131,6 +138,38 @@ static gen_operand operand_numbered(char *type, int number, char *part) {
   return operand;
 }
 
+static gen_operand operand_method(char *type, char *name, char *part) {
+  gen_operand operand = {.type = OPERAND_METHOD,
+                         .as.method = {type, name, part}};
+  return operand;
+}
+
+static char *method_type_name(data_types type) {
+
+  if (type == TYPE_BOOLEAN) {
+    return "Boolean";
+  } else if (type == TYPE_INT) {
+    return "Integer";
+  } else if (type == TYPE_DOUBLE) {
+    return "Double";
+  } else if (type == TYPE_STRING) {
+    return "String";
+  } else if (type == TYPE_UNIT) {
+    return "Unit";
+  } else {
+    gen_error(ERR_INTERNAL, NULL);
+    return NULL;
+  }
+}
+
+static char *receiver_method_type_name(node *received) {
+
+  if (received->convert_to_double) {
+    return "Double";
+  }
+  return method_type_name(received->data_type);
+}
+
 // find @main function in node
 static node *find_main(node *program) {
   for (int i = 0; i < program->as.program.size; i++) {
@@ -190,6 +229,12 @@ static void print_operand(gen_operand operand) {
 
     printf("$%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number,
            operand.as.numbered.part);
+  } else if (operand.type == OPERAND_METHOD) {
+    printf("$%s$%s", operand.as.method.type, operand.as.method.name);
+
+    if (operand.as.method.part != NULL) {
+      printf("$%s", operand.as.method.part);
+    }
   } else {
     gen_error(ERR_INTERNAL, NULL);
   }
@@ -477,6 +522,12 @@ static void literal_generate(node *lit) {
 }
 
 static void identifier_generate(node *id) {
+
+  if (id->func != NULL && id->var == NULL) {
+    call_(operand_function(id->as.ident.name, NULL));
+    return;
+  }
+
   pushs_(operand_variable(node_variable_get(id)));
 }
 
@@ -525,15 +576,13 @@ static void boolthen_generate(gen_context *ctx, node *expr) {
 static void binary_generate(gen_context *ctx, node *expr) {
   operator bin_operator = expr->as.binar.op;
 
-  if (expr->as.binar.op == OP_AND || expr->as.binar.op == OP_OR) { 
+  if (expr->as.binar.op == OP_AND || expr->as.binar.op == OP_OR) {
     boolthen_generate(ctx, expr);
     return;
   }
   expression_generate(ctx, expr->as.binar.left);
   expression_generate(ctx, expr->as.binar.right);
-  
 
-  
   if (bin_operator == OP_ADD && expr->data_type == TYPE_STRING) {
     concat_();
   } else if (bin_operator == OP_ADD) {
@@ -568,10 +617,22 @@ static void binary_generate(gen_context *ctx, node *expr) {
 
 // generates code call
 static void call_generate(gen_context *ctx, node *call) {
+  node *received =
+      call->as.call.receiver; // temporary variable for receiver node
+
+  if (received != NULL) {
+    expression_generate(ctx, received);
+  }
   for (int i = 0; i < call->as.call.size; i++) {
     expression_generate(ctx, call->as.call.items[i]);
   }
-  call_(operand_function(call->as.call.name, NULL));
+
+  if (received != NULL) {
+    call_(operand_method(receiver_method_type_name(received),
+                         call->as.call.name, NULL));
+  } else {
+    call_(operand_function(call->as.call.name, NULL));
+  }
 }
 
 // function for valmem extension
@@ -579,9 +640,13 @@ static void valmem_generate(gen_context *ctx, node *expr) {
   char *valmem = expr->as.member.name;
   expression_generate(ctx, expr->as.member.obj);
 
-  if (strcmp(valmem, "toInt") == 0) {
+  if (expr->func != NULL) {
+    call_(operand_method(receiver_method_type_name(expr->as.member.obj), valmem,
+                         NULL));
+
+  } else if (strcmp(valmem, "toInt") == 0) {
     call_(operand_function("toInt", NULL));
-  } else if (strcmp(valmem, "toStr") == 0) {
+  } else if (strcmp(valmem, "toString") == 0) {
     call_(operand_function("toStr", NULL));
   } else if (strcmp(valmem, "length") == 0) {
     call_(operand_function("strLength", NULL));
@@ -618,6 +683,14 @@ static void expression_generate(gen_context *ctx, node *expr) {
 
 // ------ generation of statements and blocks
 
+static gen_operand function_label(gen_context *ctx, char *label) {
+  char *name = ctx->function->as.function.name;
+  if (ctx->received_type != NULL) {
+    return operand_method(ctx->received_type, name, label);
+  }
+  return operand_function(name, label);
+}
+
 // changes value on top of stack to match return type of function
 static void set_return_type(gen_context *ctx) {
 
@@ -648,7 +721,7 @@ static void return_generate(gen_context *ctx, node *stmnt) {
   }
 
   set_return_type(ctx);
-  jump_(operand_function(ctx->function->as.function.name, "end"));
+  jump_(function_label(ctx, "end"));
 }
 
 static void block_generate(gen_context *ctx, node *block, bool is_keep_value);
@@ -743,12 +816,11 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
 // ----- generation of functions and whole program
 
 static void function_generate(gen_context *ctx, node *fn) {
-  char *name = fn->as.function.name;
   sym_function *function_entry = node_function_get(fn);
   ctx->function = fn;
 
   // beginning of function
-  label_(operand_function(name, NULL));
+  label_(function_label(ctx, NULL));
   createframe_();
   pushframe_();
 
@@ -758,6 +830,9 @@ static void function_generate(gen_context *ctx, node *fn) {
 
   // error handling of parameters
   int param_count = fn->as.function.param_count;
+  if (ctx->received_type != NULL) {
+    param_count++;
+  }
   if (function_entry->locals_count < param_count) {
     gen_error(ERR_INTERNAL, fn);
   }
@@ -775,7 +850,7 @@ static void function_generate(gen_context *ctx, node *fn) {
   set_return_type(ctx);
 
   // end of function
-  label_(operand_function(name, "end"));
+  label_(function_label(ctx, "end"));
   popframe_();
   return_();
 
@@ -805,6 +880,15 @@ void code_generate(struct node *program) {
   }
 
   for (int i = 0; i < program->as.program.size; i++) {
-    function_generate(&ctx, program->as.program.items[i]);
+    node *item = program->as.program.items[i];
+    if (item->type == node_extension) {
+      ctx.received_type = method_type_name(item->as.extension.type);
+      for (int j = 0; j < item->as.extension.size; j++) {
+        function_generate(&ctx, item->as.extension.methods[j]);
+      }
+      ctx.received_type = NULL;
+    } else {
+      function_generate(&ctx, program->as.program.items[i]);
+    }
   }
 }
