@@ -950,7 +950,7 @@ static void for_generate(gen_context *ctx, node *stmnt) {
   gen_operand loop_variable = operand_variable(node_variable_get(stmnt));
   gen_operand step = operand_int(1);
   gen_operand end_label = operand_numbered("for", for_label, "end");
-  bool until = stmnt->as.for_n.until;
+  bool until = !stmnt->as.for_n.inclusive;
 
   expression_generate(ctx, stmnt->as.for_n.from);
   pops_(loop_variable);
