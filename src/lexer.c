@@ -1,49 +1,9 @@
 #include "token.h"
+#include "enums.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef enum {
-  STATE_START_LINE,
-  STATE_SPACE,
-  STATE_EOL,
-  STATE_IND,
-  STATE_DED,
-  STATE_READ,
-  STATE_ID,
-  STATE_INT,
-  STATE_DOUBLE,
-  STATE_STRING,
-  STATE_MULTILINE_STRING,
-  STATE_STRING_LOAD,
-  STATE_CHAR,
-  STATE_NUM,
-  STATE_OP_ASSIGN,
-  STATE_OP_NEQ,
-  STATE_LESS,
-  STATE_MORE,
-  STATE_EOF,
-  STATE_MAIN,
-  STATE_IMPORT,
-  STATE_UNIT,
-  STATE_VAL,
-  STATE_VAR,
-  STATE_RETURN,
-  STATE_WHILE,
-  STATE_THEN,
-  STATE_DOUBLE_LOAD_E,
-  STATE_DOUBLE_LOAD,
-  STATE_DOUBLE_LOAD_DOT,
-  STATE_UNDERSC_LOAD,
-  STATE_IDENTIFIER,
-  STATE_SLASH,
-  STATE_COMM,
-  STATE_COMM_LVL,
-  STATE_COMM_EOL,
-  STATE_NUM_ZERO,
-  STATE_E_SIGN,
-} State;
 
 typedef struct {
   int *data;
