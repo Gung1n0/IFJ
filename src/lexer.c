@@ -350,6 +350,34 @@ Token get_token(FILE *source) {
       } else if (c == '@') {
         fillToken(TOKEN_AT);
         return token;
+      } else if (c == '&') {
+        int next_c = fgetc(source);
+        if (next_c == '&') {
+          column++;
+          fillToken(TOKEN_OP_AND);
+          return token;
+        } else {
+          ungetc(next_c, source);
+          fprintf(stderr,
+                  "Lexikalna chyba: Neplatny znak '&' na riadku %d, stlpec %d\n",
+                  row, column);
+          free_lexer_globals();
+          exit(1);
+        }
+      } else if (c == '|') {
+        int next_c = fgetc(source);
+        if (next_c == '|') {
+          column++;
+          fillToken(TOKEN_OP_OR);
+          return token;
+        } else {
+          ungetc(next_c, source);
+          fprintf(stderr,
+                  "Lexikalna chyba: Neplatny znak '|' na riadku %d, stlpec %d\n",
+                  row, column);
+          free_lexer_globals();
+          exit(1);
+        }
       } else {
         fprintf(stderr,
                 "Lexikalna chyba: Neplatny znak na riadku %d, stlpec %d\n", row,
@@ -480,6 +508,14 @@ Token get_token(FILE *source) {
           fillToken(TOKEN_KW_WHILE);
         else if (strcmp(buffer.data, "then") == 0)
           fillToken(TOKEN_KW_THEN);
+        else if (strcmp(buffer.data, "extension") == 0)
+          fillToken(TOKEN_KW_EXTENSION);
+        else if (strcmp(buffer.data, "Boolean") == 0)
+          fillToken(TOKEN_KW_BOOLEAN);
+        else if (strcmp(buffer.data, "true") == 0)
+          fillToken(TOKEN_TRUE);
+        else if (strcmp(buffer.data, "false") == 0)
+          fillToken(TOKEN_FALSE);
         else
           fillToken(TOKEN_IDENTIFIER);
         return token;
@@ -679,12 +715,8 @@ Token get_token(FILE *source) {
         return token;
       } else {
         ungetc(c, source);
-        column++;
-        fprintf(stderr,
-                "Lexikalna chyba: Neplatny znak na riadku %d, v stlpci %d\n",
-                row, column);
-        free_lexer_globals();
-        exit(1);
+        fillToken(TOKEN_OP_NOT);
+        return token;
       }
       break;
 
