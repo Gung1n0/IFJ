@@ -158,6 +158,6 @@ typedef struct {
 
 typedef struct {
   actions table[15][15];
-} pre_talbe;
+} pre_table;
 
 #endif

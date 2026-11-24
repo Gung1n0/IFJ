@@ -37,7 +37,8 @@ typedef enum {
   node_binar,
   node_call,
   node_member,
-  node_extension
+  node_extension,
+  node_for
 } node_type;
 
 typedef enum {
