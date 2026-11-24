@@ -377,9 +377,18 @@ static data_types compute_expression_type(sem_context *c, node *n) {
   case node_call:
     return analyze_call(c, n);
   // VALMEM extension
-  case node_member: { // TODO next
+  case node_member: {
+    node *receiver = n->as.member.obj;
+    char *member_name = n->as.member.name;
+    node **args = n->as.member.items;
+    int arg_count = n->as.member.size;
+    int member_lists = n->as.member.lists_count;
+    int *member_sizes = n->as.member.list_sizes;
+
     data_types reciever_type = analyze_expressions(c, n->as.member.obj);
-    op_result member_results = look_up_member_data_type(n->as.member.name);
+    op_result member_results = {false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+    if (member_lists == 0) // VALMEM members are only written without ()
+      member_results = look_up_member_data_type(member_name);
 
     // not a VALMEM method
     if (member_results.ok) {
@@ -399,23 +408,31 @@ static data_types compute_expression_type(sem_context *c, node *n) {
       if (func == NULL)
         sem_error(ERR_UNDEFINED, n);
 
-      node **items = calloc(1, sizeof(node *));
-      int *sizes = calloc(1, sizeof(int));
-
+      // receiver + the member's own arguments
+      node **items = calloc(arg_count + 1, sizeof(node *));
+      int *sizes = calloc(member_lists + 1, sizeof(int));
       print_err_if_null(items, n);
       print_err_if_null(sizes, n);
 
-      free(n->as.member.name);
+      items[0] = receiver;
+      for (int i = 0; i < arg_count; i++)
+        items[i + 1] = args[i]; // the argument nodes move, not copied
 
-      items[0] = n->as.member.obj;
-      sizes[0] = 1;
+      sizes[0] = 1; // the receiver's list
+      for (int i = 0; i < member_lists; i++)
+        sizes[i + 1] = member_sizes[i];
+
+      // the old arrays and name aren't needed anymore (the argument nodes are)
+      free(member_name);
+      free(args);
+      free(member_sizes);
 
       n->type = node_call;
       n->as.call.name = method_name;
       n->as.call.items = items;
-      n->as.call.size = 1;
-      n->as.call.cap = 1;
-      n->as.call.lists_count = 1;
+      n->as.call.size = arg_count + 1;
+      n->as.call.cap = arg_count + 1;
+      n->as.call.lists_count = member_lists + 1;
       n->as.call.list_sizes = sizes;
 
       return analyze_call(c, n);
