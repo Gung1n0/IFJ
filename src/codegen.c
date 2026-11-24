@@ -22,8 +22,9 @@
 #include "ast.h"
 #include "codegen.h"
 #include "common_functions.h"
-#include "symtable.h"
 #include "enums.h"
+#include "symtable.h"
+
 
 // operand types of IFJcode26 instruction used in code generator
 typedef enum {
@@ -367,6 +368,12 @@ static void jumpifeqs_(gen_operand label) {
   write_instruction("jumpifeqs", 1, &label);
 }
 
+/// @brief pops 2 values from stack, jumps if not equal
+/// @param label
+static void jumpifneqs_(gen_operand label) {
+  write_instruction("jumpifneqs", 1, &label);
+}
+
 /// @brief call
 /// @param label called function label
 static void call_(gen_operand label) { write_instruction("call", 1, &label); }
@@ -620,6 +627,8 @@ static char *gen_library[] = {
 //  ------- generation of expressions and statements
 static void expression_generate(gen_context *ctx, node *expr);
 
+static void if_generate(gen_context *ctx, node *stmnt, bool is_keep_value);
+
 /// @brief literal value is pushed on stack
 /// @param lit literal node
 static void literal_generate(node *lit) {
@@ -749,12 +758,11 @@ static void binary_generate(gen_context *ctx, node *expr) {
 /// @param ctx generation context
 /// @param call call node
 static void call_generate(gen_context *ctx, node *call) {
-  
+
   for (int i = 0; i < call->as.call.size; i++) {
     expression_generate(ctx, call->as.call.items[i]);
   }
-    call_(operand_function(call->as.call.name, NULL));
-  
+  call_(operand_function(call->as.call.name, NULL));
 }
 
 /// @brief VALMEM built in function that calls value.toString, value.toInt,
@@ -792,6 +800,8 @@ static void expression_generate(gen_context *ctx, node *expr) {
     literal_generate(expr);
   } else if (expr->type == node_call) {
     call_generate(ctx, expr);
+  } else if (expr->type == node_if) {
+    if_generate(ctx, expr, true);
   } else if (expr->type == node_expression) {
     expression_generate(ctx, expr->as.expression.expression);
   } else if (expr->type == node_id) {
@@ -902,19 +912,91 @@ static void while_generate(gen_context *ctx, node *stmnt) {
 // label if$num$else
 // block
 // label if$num$end
-static void if_generate(gen_context *ctx, node *stmnt) {
+static void if_generate(gen_context *ctx, node *stmnt, bool is_keep_value) {
 
   int if_label = ctx->label_cnt++;
   expression_generate(ctx, stmnt->as.if_n.condition);
   pushs_(operand_bool(false));
   jumpifeqs_(operand_numbered("if", if_label, "else"));
-  block_generate(ctx, stmnt->as.if_n.then, false);
+  block_generate(ctx, stmnt->as.if_n.then, is_keep_value);
   jump_(operand_numbered("if", if_label, "end"));
   label_(operand_numbered("if", if_label, "else"));
   if (stmnt->as.if_n.else_n != NULL) {
-    block_generate(ctx, stmnt->as.if_n.else_n, false);
+    block_generate(ctx, stmnt->as.if_n.else_n, is_keep_value);
+  } else if (is_keep_value) {
+    pushs_(operand_nil());
   }
   label_(operand_numbered("if", if_label, "end"));
+}
+
+static void for_end_generate(gen_operand loop_variable,
+                             gen_operand end_variable, bool until, bool descend,
+                             gen_operand end_label) {
+
+  pushs_(loop_variable);
+  pushs_(end_variable);
+  if (descend != until) {
+    lts_();
+  } else {
+    gts_();
+  }
+  pushs_(operand_bool(!until));
+  jumpifeqs_(end_label);
+}
+
+static void for_generate(gen_context *ctx, node *stmnt) {
+  int for_label = ctx->label_cnt++;
+  gen_operand end_variable = operand_variable(stmnt->as.for_n.end_var);
+  gen_operand loop_variable = operand_variable(node_variable_get(stmnt));
+  gen_operand step = operand_int(1);
+  gen_operand end_label = operand_numbered("for", for_label, "end");
+  bool until = stmnt->as.for_n.until;
+
+  expression_generate(ctx, stmnt->as.for_n.from);
+  pops_(loop_variable);
+  expression_generate(ctx, stmnt->as.for_n.to);
+  pops_(end_variable);
+
+  if (stmnt->as.for_n.step != NULL) {
+    step = operand_variable(stmnt->as.for_n.step_var);
+    expression_generate(ctx, stmnt->as.for_n.step);
+    pops_(step);
+
+    pushs_(step);
+    pushs_(operand_int(0));
+    jumpifneqs_(operand_numbered("for", for_label, "start"));
+    exit_(operand_int(40));
+  }
+
+  label_(operand_numbered("for", for_label, "start"));
+
+  if (stmnt->as.for_n.step != NULL) {
+    pushs_(step);
+    pushs_(operand_int(0));
+    lts_();
+    pushs_(operand_bool(true));
+    jumpifeqs_(operand_numbered("for", for_label, "down"));
+    for_end_generate(loop_variable, end_variable, until, false, end_label);
+    jump_(operand_numbered("for", for_label, "body"));
+    label_(operand_numbered("for", for_label, "down"));
+    for_end_generate(loop_variable, end_variable, until, true, end_label);
+    label_(operand_numbered("for", for_label, "body"));
+  } else {
+    for_end_generate(loop_variable, end_variable, until, false, end_label);
+  }
+  for (int i = 0; i < stmnt->as.for_n.guard_count; i++) {
+    expression_generate(ctx, stmnt->as.for_n.guards[i]);
+    pushs_(operand_bool(false));
+    jumpifeqs_(operand_numbered("for", for_label, "next"));
+  }
+  block_generate(ctx, stmnt->as.for_n.body, false);
+  label_(operand_numbered("for", for_label, "next"));
+  pushs_(loop_variable);
+  pushs_(step);
+  adds_();
+  pops_(loop_variable);
+  jump_(operand_numbered("for", for_label, "start"));
+  label_(end_label);
 }
 
 /// @brief generates code for one statement, value of expression or call is
@@ -934,20 +1016,21 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
   } else if (stmnt->type == node_while) {
     while_generate(ctx, stmnt);
   } else if (stmnt->type == node_if) {
-    if_generate(ctx, stmnt);
+    if_generate(ctx, stmnt, false);
+  } else if (stmnt->type == node_for) {
+    for_generate(ctx, stmnt);
   } else {
     gen_error(ERR_INTERNAL, stmnt);
   }
 }
 
-// generates all statements of a block, if / while parts or body of function
-
-/// @brief generates all statements of a block, if / while parts or function
-/// body
+/// @brief generates all statements of a block, if / while / for parts or
+/// function body
 /// @param ctx generation context
 /// @param block node of the block
 /// @param is_keep_value if true, the value of the last statement is kept on the
-/// stack as result, a block ending with another statement has result nil@nil
+/// stack as result (also the value of the last if, CONTROL), a block ending
+/// with another statement has result nil@nil
 static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
   int cnt = block->as.block.size;
   for (int i = 0; i < cnt; i++) {
@@ -958,6 +1041,8 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
     if (is_keep_value && is_last &&
         (stmnt->type == node_expression || stmnt->type == node_call)) {
       expression_generate(ctx, stmnt);
+    } else if (is_keep_value && is_last && stmnt->type == node_if) {
+      if_generate(ctx, stmnt, true);
     } else {
       statement_generate(ctx, stmnt);
       if (is_last && is_keep_value) {
