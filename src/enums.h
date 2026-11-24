@@ -93,6 +93,11 @@ typedef enum {
   TOKEN_KW_THEN,
   TOKEN_KW_EXTENSION, // EXTKW extention
   TOKEN_KW_BOOLEAN,   // BOOLTHEN extention
+  TOKEN_KW_FOR,       // CONTROLL extention
+  TOKEN_KW_TO,        // CONTROLL extention
+  TOKEN_KW_UNTIL,     // CONTROLL extention
+  TOKEN_KW_BY,        // CONTROLL extention
+  TOKEN_KW_ARROW,     // CONTROLL extention
 
   TOKEN_OP_PLUS,    // +
   TOKEN_OP_MINUS,   // -
@@ -115,11 +120,11 @@ typedef enum {
   TOKEN_AT,    // @
   TOKEN_SEMICOLON,
 
-  TOKEN_TRUE,  // BOOLTHEN extention
-  TOKEN_FALSE, // BOOLTHEN extention
-  TOKEN_AND,   // BOOLTHEN extention
-  TOKEN_OR,    // BOOLTHEN extention
-  TOKEN_NOT,   // BOOLTHEN extention
+  TOKEN_TRUE,   // BOOLTHEN extention
+  TOKEN_FALSE,  // BOOLTHEN extention
+  TOKEN_OP_AND, // BOOLTHEN extention
+  TOKEN_OP_OR,  // BOOLTHEN extention
+  TOKEN_OP_NOT, // BOOLTHEN extention
 
   TOKEN_EOL,
   TOKEN_EOF,

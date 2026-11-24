@@ -26,7 +26,10 @@ bool is_keyword(Token *t) {
          t->type == TOKEN_KW_VAR || t->type == TOKEN_KW_RETURN ||
          t->type == TOKEN_KW_WHILE || t->type == TOKEN_KW_THEN ||
          t->type == TOKEN_KW_DOUBLE || t->type == TOKEN_KW_STRING ||
-         t->type == TOKEN_KW_EXTENSION || t->type == TOKEN_KW_BOOLEAN;
+         t->type == TOKEN_KW_EXTENSION || t->type == TOKEN_KW_BOOLEAN ||
+         t->type == TOKEN_KW_ARROW || t->type == TOKEN_KW_FOR ||
+         t->type == TOKEN_KW_UNTIL || t->type == TOKEN_KW_TO ||
+         t->type == TOKEN_KW_BY;
 }
 
 const char *token_name(TokenType type) {
@@ -121,14 +124,24 @@ const char *token_name(TokenType type) {
     return "'true'";
   case TOKEN_FALSE:
     return "'false'";
-  case TOKEN_AND:
+  case TOKEN_OP_AND:
     return "'&&'";
-  case TOKEN_OR:
+  case TOKEN_OP_OR:
     return "'||'";
-  case TOKEN_NOT:
+  case TOKEN_OP_NOT:
     return "'!'";
   case TOKEN_KW_EXTENSION:
     return "'extention'";
+  case TOKEN_KW_ARROW:
+    return "'<-'";
+  case TOKEN_KW_BY:
+    return "'by'";
+  case TOKEN_KW_FOR:
+    return "'for'";
+  case TOKEN_KW_UNTIL:
+    return "'until'";
+  case TOKEN_KW_TO:
+    return "'to'";
   }
   return "token";
 }
@@ -325,6 +338,13 @@ void free_node(node *n) {
   case node_member:
     free(n->as.member.name);
     free_node(n->as.member.obj);
+    if (n->as.member.items) {
+      for (int i = 0; i < n->as.member.size; i++) {
+        free_node(n->as.member.items[i]);
+      }
+      free(n->as.member.items);
+    }
+    free(n->as.member.list_sizes);
     break;
   case node_extension:
     for (int i = 0; i < n->as.extension.size; i++)
@@ -375,11 +395,11 @@ operator parse_operator(Token * curr) {
     return OP_LESSER_OR_EQUAL;
   case TOKEN_OP_MORE_EQ:
     return OP_GREATER_OR_EQUAL;
-  case TOKEN_NOT:
+  case TOKEN_OP_NOT:
     return OP_NOT;
-  case TOKEN_AND:
+  case TOKEN_OP_AND:
     return OP_AND;
-  case TOKEN_OR:
+  case TOKEN_OP_OR:
     return OP_OR;
   default:
     return OP_NONE;
@@ -483,7 +503,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
     return 2;
   case TOKEN_OP_DIV:
     return 3;
-  case TOKEN_NOT:
+  case TOKEN_OP_NOT:
     if (prev_index == 8 || prev_index == 6)
       print_error("Syntax error, unexpected", ERR_SYNTAX, curr->row,
                   curr->column);
@@ -502,9 +522,9 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
     return 13;
   case TOKEN_OP_NEQ:
     return 14;
-  case TOKEN_AND:
+  case TOKEN_OP_AND:
     return 15;
-  case TOKEN_OR:
+  case TOKEN_OP_OR:
     return 16;
   default:
     return 7;
@@ -526,6 +546,39 @@ node *parse_member(token_array *arr, node *prev) {
 
     skip_token(arr);
     curr = peek_token_array(arr, 0);
+
+    while (curr->type == TOKEN_LPAR) {
+      int start_size = mem->as.member.size;
+      skip_token(arr);
+      curr = peek_token_array(arr, 0);
+      while (curr->type != TOKEN_RPAR) {
+        if (curr->type == TOKEN_COMMA) {
+          skip_token(arr);
+          curr = peek_token_array(arr, 0);
+          continue;
+        }
+        if (mem->as.member.size == mem->as.member.cap) {
+          int new_cap = mem->as.member.cap == 0 ? 1 : mem->as.member.cap * 2;
+          node **temp = realloc(mem->as.member.items, sizeof(node *) * new_cap);
+          if (temp == NULL)
+            print_error("Malloc failed", ERR_INTERNAL, 0, 0);
+          mem->as.member.items = temp;
+          mem->as.member.cap = new_cap;
+        }
+        mem->as.member.items[mem->as.member.size++] = parse_expr(arr);
+        curr = peek_token_array(arr, 0);
+      }
+      get_token_from_array(arr, TOKEN_RPAR, NULL);
+      int *ls = realloc(mem->as.member.list_sizes,
+                        sizeof(int) * (mem->as.member.lists_count + 1));
+      if (ls == NULL)
+        print_error("Malloc failed", ERR_INTERNAL, 0, 0);
+      mem->as.member.list_sizes = ls;
+      mem->as.member.list_sizes[mem->as.member.lists_count++] =
+          mem->as.member.size - start_size;
+      curr = peek_token_array(arr, 0);
+    }
+
     prev = mem;
   }
   return prev;

@@ -104,6 +104,11 @@ struct node {
     struct {
       node *obj;
       char *name;
+      node **items;
+      int size;
+      int cap;
+      int lists_count;
+      int *list_sizes;
     } member; // VALMEM EXTENTION
     struct {
       char *reciever;
@@ -111,6 +116,21 @@ struct node {
       node **methods;
       int size;
     } extension; // EXTKW extention
+    struct {
+      char *var_name; // loop variable, e.g. "i"
+      node *from;     // start of the range
+      node *to;       // end of the range
+      node *step;     // by expression, NULL if there is no by
+      bool inclusive; // true: to (end included), false: until
+      node **guards;  // if conditions, in source order
+      int guard_count;
+      int guard_cap;
+      node *body; // always a node_block, even for a one-line body
+
+      // filled in by semantics, not by the parser
+      struct sym_variable *end_var;
+      struct sym_variable *step_var;
+    } for_n; // CONTROL extension
   } as;
 };
 
