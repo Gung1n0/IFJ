@@ -23,6 +23,7 @@
 #include "codegen.h"
 #include "common_functions.h"
 #include "symtable.h"
+#include "enums.h"
 
 // operand types of IFJcode26 instruction used in code generator
 typedef enum {
@@ -748,22 +749,12 @@ static void binary_generate(gen_context *ctx, node *expr) {
 /// @param ctx generation context
 /// @param call call node
 static void call_generate(gen_context *ctx, node *call) {
-  node *received =
-      call->as.call.receiver; // temporary variable for receiver node
-
-  if (received != NULL) {
-    expression_generate(ctx, received);
-  }
+  
   for (int i = 0; i < call->as.call.size; i++) {
     expression_generate(ctx, call->as.call.items[i]);
   }
-
-  if (received != NULL) {
-    call_(operand_method(receiver_method_type_name(received),
-                         call->as.call.name, NULL));
-  } else {
     call_(operand_function(call->as.call.name, NULL));
-  }
+  
 }
 
 /// @brief VALMEM built in function that calls value.toString, value.toInt,
@@ -827,11 +818,7 @@ static void expression_generate(gen_context *ctx, node *expr) {
 /// @param label label suffix, NULL for function alone
 /// @return operand of the function label
 static gen_operand function_label(gen_context *ctx, char *label) {
-  char *name = ctx->function->as.function.name;
-  if (ctx->received_type != NULL) {
-    return operand_method(ctx->received_type, name, label);
-  }
-  return operand_function(name, label);
+  return operand_function(node_function_get(ctx->function)->name, label);
 }
 
 /// @brief function with return type unit returns (), value on stack is trashed
@@ -1006,10 +993,7 @@ static void function_generate(gen_context *ctx, node *fn) {
   }
 
   // error handling of parameters
-  int param_count = fn->as.function.param_count;
-  if (ctx->received_type != NULL) {
-    param_count++;
-  }
+  int param_count = function_entry->parameter_count;
   if (function_entry->locals_count < param_count) {
     gen_error(ERR_INTERNAL, fn);
   }
