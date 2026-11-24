@@ -13,6 +13,11 @@
 #define INITIAL_LOCALS_ARRAY_SIZE 8
 #define LOCALS_CAPACITY_MULTIPLIER 2
 
+// CONTROL extension
+// "$" symbol isn't allowed in the ifj26 indentifiers, so the user can't type it
+#define END_VAR_NAME "$for_end"
+#define STEP_VAR_NAME "$for_step"
+
 static int main_counter = 0;
 
 typedef struct {
@@ -122,6 +127,36 @@ static void append_to_locals_array(sem_context *c, sym_variable *v, node *n) {
   c->locals[index] = v;
   c->locals_size++;
 }
+
+/// @brief Creates an immutable variable, declares it in the current scope and
+/// appends it to the function's locals (CONTROL: loop and hidden variables)
+/// @param c Context of the current function
+/// @param name Name of the variable (copied)
+/// @param type Data type of the variable
+/// @param n Node, used to report on a error
+/// @return Returns the declared variable
+static sym_variable *declare_local_variable(sem_context *c, const char *name,
+                                            data_types type, node *n) {
+  // heap, not stack: the symtable keeps the pointer and frees it at the end
+  sym_variable *var = calloc(1, sizeof(sym_variable));
+  print_err_if_null(var, n);
+
+  var->data_type = type;
+  var->is_mutable = false;
+  var->is_parameter = false;
+
+  // own copy of the name, the symtable frees it
+  var->name = strduplicate(name);
+  print_err_if_null(var->name, n);
+
+  error_code code = sym_declare_variable(c->table, var);
+  if (code != ERR_NONE)
+    sem_error(code, n);
+
+  append_to_locals_array(c, var, n);
+  return var;
+}
+
 /// @brief Converts parsers "param" to "sym_parameter"
 /// @param n Node, used to report on a error
 /// @param p Parameter "param" to be converted into "sym_parameter"
@@ -571,6 +606,56 @@ static analysis_result analyze_statement(sem_context *c, node *n) {
   case node_call:
     // analyze the call and return it's return type
     return (analysis_result){analyze_call(c, n), false};
+  case node_for: {
+    // CONTROL: bounds and step are analyzed in the OUTER scope, before the
+    // loop variable exists (in for i <- 0 until i the bound is the outer i)
+    data_types from_type = analyze_expressions(c, n->as.for_n.from);
+    if (from_type != TYPE_INT)
+      sem_error(ERR_TYPES, n->as.for_n.from);
+
+    data_types to_type = analyze_expressions(c, n->as.for_n.to);
+    if (to_type != TYPE_INT)
+      sem_error(ERR_TYPES, n->as.for_n.to);
+
+    node *step = n->as.for_n.step;
+    if (step != NULL) {
+      data_types step_type = analyze_expressions(c, step);
+      if (step_type != TYPE_INT)
+        sem_error(ERR_TYPES, step);
+
+      // zero step is checked at compile time for literals only
+      if (step->type == node_lit && step->as.lit.i == 0)
+        sem_error(ERR_OTHER_SEMANTIC, step);
+    }
+
+    if (!sym_enter_scope(c->table))
+      sem_error(ERR_INTERNAL, n);
+
+    // hidden variables, the end bound and the step are evaluated only once
+    n->as.for_n.end_var = declare_local_variable(c, END_VAR_NAME, TYPE_INT, n);
+    n->as.for_n.step_var = NULL;
+    if (step != NULL)
+      n->as.for_n.step_var =
+          declare_local_variable(c, STEP_VAR_NAME, TYPE_INT, n);
+
+    // the loop variable: a new immutable Int
+    n->var = declare_local_variable(c, n->as.for_n.var_name, TYPE_INT, n);
+
+    // guards can use the loop variable and must be Boolean
+    for (int g_index = 0; g_index < n->as.for_n.guard_count; g_index++) {
+      node *guard = n->as.for_n.guards[g_index];
+      if (analyze_expressions(c, guard) != TYPE_BOOLEAN)
+        sem_error(ERR_TYPES, guard);
+    }
+
+    analyze_block(c, n->as.for_n.body);
+
+    if (!sym_exit_scope(c->table))
+      sem_error(ERR_INTERNAL, n);
+
+    // the body may run zero times, so a for never "always returns"
+    return (analysis_result){TYPE_UNIT, false};
+  }
   default:
     sem_error(ERR_INTERNAL, n);
   }
