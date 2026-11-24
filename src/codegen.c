@@ -766,7 +766,11 @@ static void call_generate(gen_context *ctx, node *call) {
   }
 }
 
-// function for valmem extension
+/// @brief VALMEM built in function that calls value.toString, value.toInt,
+/// value.length. value.floor calls $floor, if semantics linked the member to a
+/// method of an extension without parameters .. EXTKW , the method is called
+/// @param ctx generation context
+/// @param expr expression node
 static void valmem_generate(gen_context *ctx, node *expr) {
   char *valmem = expr->as.member.name;
   expression_generate(ctx, expr->as.member.obj);
@@ -788,7 +792,10 @@ static void valmem_generate(gen_context *ctx, node *expr) {
   }
 }
 
-// generated expression will be on top of stack
+/// @brief generates expression, value ends on top of stack, if semantics
+/// prompted conversion to double, int2float is called
+/// @param ctx generation context
+/// @param expr expression node
 static void expression_generate(gen_context *ctx, node *expr) {
   if (expr->type == node_lit) {
     literal_generate(expr);
@@ -814,6 +821,11 @@ static void expression_generate(gen_context *ctx, node *expr) {
 
 // ------ generation of statements and blocks
 
+/// @brief label of the generated function fn$name or $type$name when method of
+/// extension is generated
+/// @param ctx generation context
+/// @param label label suffix, NULL for function alone
+/// @return operand of the function label
 static gen_operand function_label(gen_context *ctx, char *label) {
   char *name = ctx->function->as.function.name;
   if (ctx->received_type != NULL) {
@@ -822,7 +834,9 @@ static gen_operand function_label(gen_context *ctx, char *label) {
   return operand_function(name, label);
 }
 
-// changes value on top of stack to match return type of function
+/// @brief function with return type unit returns (), value on stack is trashed
+/// and nil@nil is pushed instead
+/// @param ctx generation context
 static void set_return_type(gen_context *ctx) {
 
   if (node_function_get(ctx->function)->return_type == TYPE_UNIT) {
@@ -831,19 +845,27 @@ static void set_return_type(gen_context *ctx) {
   }
 }
 
-// generates code for declaration of variable with initial value
+/// @brief initial value is stored in variable (variable is defined by DEFVAR at
+/// the beggining of the function))
+/// @param ctx generation context
+/// @param stmnt node of the definition of variable with initial value
 static void var_val_generate(gen_context *ctx, node *stmnt) {
   expression_generate(ctx, stmnt->as.val_var.init);
   pops_(operand_variable(node_variable_get(stmnt)));
 }
 
-// evaluates right side value, it ends on top of stack
+/// @brief stores the value on right side to variable
+/// @param ctx generation context
+/// @param stmnt node of the assignment
 static void assign_generate(gen_context *ctx, node *stmnt) {
   expression_generate(ctx, stmnt->as.asign.init);
   pops_(operand_variable(node_variable_get(stmnt)));
 }
 
-// return, value is on top of stack and jumps to end of function
+/// @brief returned value stays on top of the stack, code jumps to the end of
+/// function
+/// @param ctx generation context
+/// @param stmnt node of return
 static void return_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->as.ret.value != NULL) {
     expression_generate(ctx, stmnt->as.ret.value);
@@ -857,6 +879,9 @@ static void return_generate(gen_context *ctx, node *stmnt) {
 
 static void block_generate(gen_context *ctx, node *block, bool is_keep_value);
 
+/// @brief while cycle, condition evaluation before every iteration
+/// @param ctx generation context
+/// @param stmnt node of the while statement
 // while block
 // label while$num$start
 // expression
@@ -878,6 +903,10 @@ static void while_generate(gen_context *ctx, node *stmnt) {
   label_(operand_numbered("while", while_label, "end"));
 }
 
+/// @brief if statement, the else part can be missing and else if is an if in
+/// else block
+/// @param ctx generation context
+/// @param stmnt node of the if statement
 // expression
 // pushs false
 // jumpifeqs if$num$else
@@ -901,6 +930,10 @@ static void if_generate(gen_context *ctx, node *stmnt) {
   label_(operand_numbered("if", if_label, "end"));
 }
 
+/// @brief generates code for one statement, value of expression or call is
+/// trashed
+/// @param ctx generation context
+/// @param stmnt statement node
 static void statement_generate(gen_context *ctx, node *stmnt) {
   if (stmnt->type == node_expression || stmnt->type == node_call) {
     expression_generate(ctx, stmnt);
@@ -921,6 +954,13 @@ static void statement_generate(gen_context *ctx, node *stmnt) {
 }
 
 // generates all statements of a block, if / while parts or body of function
+
+/// @brief generates all statements of a block, if / while parts or function
+/// body
+/// @param ctx generation context
+/// @param block node of the block
+/// @param is_keep_value if true, the value of the last statement is kept on the
+/// stack as result, a block ending with another statement has result nil@nil
 static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
   int cnt = block->as.block.size;
   for (int i = 0; i < cnt; i++) {
@@ -946,6 +986,12 @@ static void block_generate(gen_context *ctx, node *block, bool is_keep_value) {
 
 // ----- generation of functions and whole program
 
+/// @brief generates code for a function, new local frame, DEFVAR for all local
+/// variables, arguments are popped from stack last to first, then body. its
+/// value is return value left on stack, EXTKW has receiver as extra first
+/// argument
+/// @param ctx generation context
+/// @param fn node of the function
 static void function_generate(gen_context *ctx, node *fn) {
   sym_function *function_entry = node_function_get(fn);
   ctx->function = fn;
@@ -988,7 +1034,8 @@ static void function_generate(gen_context *ctx, node *fn) {
   ctx->function = NULL;
 }
 
-// generating code from AST
+/// @brief generates whole code of the program in IFJcode26 to output
+/// @param program node of the program
 void code_generate(struct node *program) {
 
   node *main_function = find_main(program);
@@ -1003,6 +1050,8 @@ void code_generate(struct node *program) {
   for (int i = 0; gen_global_temp[i] != NULL; i++) {
     printf("defvar GF@%s\n", gen_global_temp[i]);
   }
+
+  // program is call of @main, after the return interpretation ends, exit code 0
   call_(operand_function(main_function->as.function.name, NULL));
   exit_(operand_int(0));
 
@@ -1010,6 +1059,7 @@ void code_generate(struct node *program) {
     printf("%s\n", gen_library[i]);
   }
 
+  // generates all functions and methods of the program
   for (int i = 0; i < program->as.program.size; i++) {
     node *item = program->as.program.items[i];
     if (item->type == node_extension) {
