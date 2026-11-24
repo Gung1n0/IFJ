@@ -49,6 +49,8 @@ static analysis_result analyze_statement(sem_context *c, node *n);
 static analysis_result analyze_block(sem_context *c, node *n);
 static data_types analyze_call(sem_context *c, node *n);
 static void analyze_function_entry(sym_table *t, sym_function *f);
+static analysis_result analyze_if(sem_context *c, node *n, bool as_expression);
+static void mark_block_result_conversion(node *block, data_types target);
 
 /// @brief Prints error message, points to the fault node and exits with a
 /// error_code
@@ -75,7 +77,7 @@ static bool is_function_node(node *n) { return n->type == node_function; }
 
 /// @brief Converts data type to a string version, used for EXTKW
 /// @param t Type of variable
-/// @return Returns type of variable in string form
+/// @return Returns type of variable in string forms
 static const char *type_to_string(data_types t) {
   switch (t) {
   case TYPE_INT:
@@ -275,8 +277,28 @@ static void check_untyped_recursion(sym_table *table, node *program) {
 /// @param value Node value
 /// @param target Target data type
 static void mark_conversion(node *value, data_types target) {
-  if (needs_int_to_double(target, value->data_type))
+  if (value->type == node_if) {
+    // CONTROL: an if converts the value of each branch, not itself
+    mark_block_result_conversion(value->as.if_n.then, target);
+    if (value->as.if_n.else_n != NULL)
+      mark_block_result_conversion(value->as.if_n.else_n, target);
+  } else if (needs_int_to_double(target, value->data_type))
     value->convert_to_double = true;
+}
+
+/// @brief Marks the value a block ends with (its last statement) for
+/// conversion
+/// @param block Block (node_block) to be marked
+/// @param target Target data type
+static void mark_block_result_conversion(node *block, data_types target) {
+  if (block->as.block.size == 0)
+    return;
+
+  node *last = block->as.block.items[block->as.block.size - 1];
+  if (last->type == node_expression)
+    mark_conversion(last->as.expression.expression, target);
+  else if (last->type == node_call || last->type == node_if)
+    mark_conversion(last, target);
 }
 
 static sem_context *init_sem_context(node *n, sym_table *t) {
@@ -401,6 +423,9 @@ static data_types compute_expression_type(sem_context *c, node *n) {
 
     return member_results.result_type;
   }
+  // CONTROL extension
+  case node_if:
+    return analyze_if(c, n, true).last_statement;
   default:
     sem_error(ERR_INTERNAL, n);
   }
@@ -480,6 +505,62 @@ static data_types analyze_call(sem_context *c, node *n) {
   return TYPE_UNKNOWN;
 }
 
+/// @brief Analyzes if expression
+/// @param c Context of the current function
+/// @param n Node to be analyzed
+/// @return Returns if's data type
+static analysis_result analyze_if(sem_context *c, node *n, bool as_expression) {
+  // check what type the condition is; has to be a boolean expression
+  data_types condition = analyze_expressions(c, n->as.if_n.condition);
+  if (condition != TYPE_BOOLEAN)
+    sem_error(ERR_TYPES, n->as.if_n.condition);
+
+  // analyze if_then and else branches
+  analysis_result then_block_analysis_result = {TYPE_UNIT, false};
+  analysis_result else_block_analysis_result = {TYPE_UNIT, false};
+
+  then_block_analysis_result = analyze_block(c, n->as.if_n.then);
+  if (n->as.if_n.else_n != NULL)
+    else_block_analysis_result = analyze_block(c, n->as.if_n.else_n);
+  else if (as_expression)     // no else
+    sem_error(ERR_SYNTAX, n); // parser should already handle this
+
+  bool then_ret = then_block_analysis_result.always_returns;
+  bool else_ret = else_block_analysis_result.always_returns;
+
+  data_types then_type = then_block_analysis_result.last_statement;
+  data_types else_type = else_block_analysis_result.last_statement;
+
+  data_types if_type;
+  if (n->as.if_n.else_n == NULL) {
+    // no else: same as the base assignment, then has to be Unit (or return)
+    bool then_ok = then_ret || then_type == TYPE_UNIT;
+    if_type = then_ok ? TYPE_UNIT : TYPE_UNKNOWN;
+  } else if (then_ret) {
+    // a branch that always returns never produces a value
+    if_type = else_type;
+  } else if (else_ret) {
+    if_type = then_type;
+  } else {
+    op_result unify_result = unify_types(then_type, else_type);
+    if (unify_result.ok) {
+      if_type = unify_result.result_type;
+      // Int branch in a Double if -> convert that branch's value
+      if (if_type == TYPE_DOUBLE)
+        mark_conversion(n, TYPE_DOUBLE);
+    } else {
+      if (as_expression)
+        sem_error(ERR_TYPES, n);
+      if_type = TYPE_UNKNOWN; // fine as a statement, unusable as a value
+    }
+  }
+
+  n->data_type = if_type;
+  bool always_returns = then_ret && else_ret;
+
+  return (analysis_result){if_type, always_returns};
+}
+
 /// @brief Analyzes a statement, and chooses what logic to compute depending on
 /// type of statement
 /// @param c Context of the current function
@@ -513,33 +594,8 @@ static analysis_result analyze_statement(sem_context *c, node *n) {
     analyze_block(c, n->as.while_n.body);
     return (analysis_result){TYPE_UNIT, false};
   }
-  case node_if: {
-    // check what type the condition is; has to be a boolean expression
-    data_types condition = analyze_expressions(c, n->as.if_n.condition);
-    if (condition != TYPE_BOOLEAN)
-      sem_error(ERR_TYPES, n->as.if_n.condition);
-
-    // analyze if_then and else branches
-    analysis_result then_block_analysis_result = {TYPE_UNIT, false};
-    analysis_result else_block_analysis_result = {TYPE_UNIT, false};
-
-    then_block_analysis_result = analyze_block(c, n->as.if_n.then);
-    if (n->as.if_n.else_n != NULL)
-      else_block_analysis_result = analyze_block(c, n->as.if_n.else_n);
-
-    bool then_ret = then_block_analysis_result.always_returns;
-    bool else_ret = else_block_analysis_result.always_returns;
-
-    bool then_ok =
-        then_ret || then_block_analysis_result.last_statement == TYPE_UNIT;
-    bool else_ok =
-        else_ret || else_block_analysis_result.last_statement == TYPE_UNIT;
-
-    data_types if_type = (then_ok && else_ok) ? TYPE_UNIT : TYPE_UNKNOWN;
-    bool always_returns = then_ret && else_ret;
-
-    return (analysis_result){if_type, always_returns};
-  }
+  case node_if:
+    return analyze_if(c, n, false);
   case node_return: {
     // if function doesn't have a explicit return type, deny the return
     if (!c->current_function_entry->has_explicit_return_type)
@@ -851,14 +907,8 @@ static void analyze_function(sem_context *c, node *n) {
       if (!is_return_compatible(declared, block_result.last_statement))
         sem_error(ERR_TYPES, n);
 
-      if (declared != TYPE_UNIT) {
-        node *body = n->as.function.body;
-        node *last = body->as.block.items[body->as.block.size - 1];
-        if (last->type == node_expression)
-          mark_conversion(last->as.expression.expression, declared);
-        else if (last->type == node_call)
-          mark_conversion(last, declared);
-      }
+      if (declared != TYPE_UNIT)
+        mark_block_result_conversion(n->as.function.body, declared);
 
     } else {
       if (!is_valid_variable_type(block_result.last_statement))

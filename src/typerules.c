@@ -109,6 +109,20 @@ op_result unary_operation(operator op, data_types operand) {
   return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
 }
 
+/// @brief Checks to see if 2 types can be unified (part of CONTROL extension)
+op_result unify_types(data_types a, data_types b) {
+  if (a == TYPE_UNKNOWN || b == TYPE_UNKNOWN)
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+
+  if (a == b)
+    return (op_result){true, a, a};
+
+  if ((a == TYPE_INT && b == TYPE_DOUBLE) ||
+      (a == TYPE_DOUBLE && b == TYPE_INT))
+    return (op_result){true, TYPE_DOUBLE, TYPE_DOUBLE};
+  return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+}
+
 /// @brief Looks up reciever and result data types from member name (part of
 /// VALMEM extension)
 op_result look_up_member_data_type(char *name) {
