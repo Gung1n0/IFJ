@@ -476,6 +476,14 @@ Token get_token(FILE *source) {
           fillToken(TOKEN_TRUE);
         else if (strcmp(buffer.data, "false") == 0)
           fillToken(TOKEN_FALSE);
+        else if (strcmp(buffer.data, "for") == 0)
+          fillToken(TOKEN_KW_FOR);
+        else if (strcmp(buffer.data, "to") == 0)
+          fillToken(TOKEN_KW_TO);
+        else if (strcmp(buffer.data, "until") == 0)
+          fillToken(TOKEN_KW_UNTIL);
+        else if (strcmp(buffer.data, "by") == 0)
+          fillToken(TOKEN_KW_BY);
         else
           fillToken(TOKEN_IDENTIFIER);
         return token;
@@ -685,6 +693,10 @@ Token get_token(FILE *source) {
       if (c == '=') {
         column++;
         fillToken(TOKEN_OP_LESS_EQ);
+        return token;
+      } else if (c == '-') {
+        column++;
+        fillToken(TOKEN_KW_ARROW);
         return token;
       } else {
         ungetc(c, source);
