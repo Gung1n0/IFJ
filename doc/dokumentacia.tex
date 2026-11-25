@@ -1,6 +1,9 @@
 \documentclass{article}
 \usepackage{graphicx} % Required for inserting images
 \usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+
 \graphicspath{{./inc/}}
 
 \begin{document}
@@ -51,7 +54,34 @@
     \subsection{Lexikálna analýza}
         % write here
     \subsection{Syntaktická analýza}
-        % write here
+        \begin{table}[ht]
+  \centering
+  \caption{Precedenčná tabuľka}
+  \label{Tabulka 1}
+  \begin{tabular}{l *{17}{c}}
+    \toprule
+    $\backslash$ & $+$ & $-$ & $*$ & $/$ & $!$ & $($ & $)$ & $\$$ & $i$ & $<$ & $\leq$ & $>$ & $\ge$ & $==$ & $!=$ & $\&\&$ & $||$ \\
+    \midrule
+    $+$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $-$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $*$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $/$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $!$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $($ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $==$ & $\mathrm{err}$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $)$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $\$$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $i$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\leq$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\ge$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $!=$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $\&\&$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ \\
+    $||$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
     \subsection{Sémantická analýza}
         % write here
     \subsection{Generovanie kódu}
