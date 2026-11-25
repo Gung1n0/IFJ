@@ -1,6 +1,6 @@
 /*
  * implementation of a compiler for the language IFJ26
- * codegen.h
+ * main.c
  * compiler entry, runs all sections lexer -> parser -> semantic analysis ->
  * code generation
  *
