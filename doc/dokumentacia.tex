@@ -3,6 +3,7 @@
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
+\usepackage{enumitem}
 
 \graphicspath{{./inc/}}
 
@@ -55,7 +56,65 @@
         % write here
     \subsection{Syntaktická analýza}
         \begin{table}[ht]
-  \centering
+  
+    \subsection{Sémantická analýza}
+        % write here
+    \subsection{Generovanie kódu}
+        % write here
+\section{Špeciálne algoritmy a dátové štruktúry}
+    % write here
+\section{Záver}
+    % write here
+\section{Literatúra}
+    % idk ci je treba, popripade mozme zrusit
+\section{Prílohy}
+\section{LL -- gramatika}
+\label{sec:ll-grammar}
+\begin{enumerate}[label=\arabic*., leftmargin=2.2em, itemsep=1pt, parsep=0pt]
+  \item \texttt{<program> ->  <prolog> <top\_list> EOF}
+  \item \texttt{<prolog> ->  <opt\_eol> import \ IFJ26.* \ <line\_end>}
+  \item \texttt{<line\_end> -> EOL  |  EOF}
+  \item \texttt{<opt\_eol> -> \ <opt\_eol> | $\epsilon$}
+  \item \texttt{<top\_list> -> <top\_list> <top\_item> | $\epsilon$}
+  \item \texttt{<top\_item> -> <def> | <main> | <extention> | EOL}
+  \item \texttt{<def> -> ( \ <opt\_params> \ ) \ <opt\_colon> = <opt\_eol> <block>}
+  \item \texttt{<opt\_params>-> id \ : <type> <opt\_comma>}
+  \item \texttt{<opt\_comma>-> , | $\epsilon$}
+  \item \texttt{<type>-> int | unit | double | string | boolen | $\epsilon$}
+  \item \texttt{<main>-> $@$ main <opt\_eol> <def>}
+  \item \texttt{<extention> -> extention ( id : <type> ) EOL IND <opt\_eol> <def> DED}
+  \item \texttt{<block>-><opt\_eol> <opt\_ind> <statement> <compound> <opt\_eol>}
+  \item \texttt{<compound>-> <opt\_if\_for\_while> <opt\_semicolon>}
+  \item \texttt{<opt\_semicolon> -> ; | $\epsilon$}
+  \item \texttt{<opt\_ind> -> IND | $\epsilon$}
+  \item \texttt{<statement> -> <opt\_valvar> | <opt\_return> | <opt\_while> | <opt\_if> | <opt\_for> | <opt\_asign> | <expression>}
+  \item \texttt{<opt\_if\_for\_while> -> <opt\_if> | <opt\_for> | <opt\_while> | $\epsilon$}
+  \item \texttt{<opt\_valvar> -> <val\_var> | $\epsilon$}
+  \item \texttt{<opt\_return> -> <return> | $\epsilon$}
+  \item \texttt{<opt\_while> -> <while> | $\epsilon$}
+  \item \texttt{<opt\_if> -> <if> | $\epsilon$}
+  \item \texttt{<opt\_for> -> <for> | $\epsilon$}
+  \item \texttt{<opt\_asign> -> <asign> | $\epsilon$}
+  \item \texttt{<val\_var> -> val | var id <opt\_colon\_type> = <expression>}
+  \item \texttt{<opt\_colon\_type> -> <colon\_type> | $\epsilon$}
+  \item \texttt{<colon\_type> -> : <type>}
+  \item \texttt{<return> -> return <opt\_expression>}
+  \item \texttt{<opt\_expression> -> <expression> | $\epsilon$}
+  \item \texttt{<while> -> while <expression> do <block>}
+  \item \texttt{<if> -> if <expression> then <block> <opt\_eol> <opt\_else>}
+  \item \texttt{<opt\_else> -> <else> | $\epsilon$}
+  \item \texttt{<else> -> <opt\_if> | <block>}
+  \item \texttt{<opt\_if> -> <if> | $\epsilon$}
+  \item \texttt{<for> -> for <opt\_eol\_gen> do <block>}
+  \item \texttt{<opt\_eol\_gen> -> <opt\_eol> | $\epsilon$ <for\_gen> <for\_guard>}
+  \item \texttt{<for\_gen> -> id <expression> to | until <expression> <opt\_by>}
+  \item \texttt{<opt\_by> -> by | $\epsilon$}
+  \item \texttt{<for\_guard> -> if <expression> <opt\_eol> <opt\_for\_guard>}
+  \item \texttt{<opt\_for\_guard> -> <for\_guard> | $\epsilon$}
+  \item \texttt{<asign> -> id = <expression>}
+\end{enumerate}
+
+    \centering
   \caption{Precedenčná tabuľka}
   \label{Tabulka 1}
   \begin{tabular}{l *{17}{c}}
@@ -82,16 +141,4 @@
     \bottomrule
   \end{tabular}
 \end{table}
-    \subsection{Sémantická analýza}
-        % write here
-    \subsection{Generovanie kódu}
-        % write here
-\section{Špeciálne algoritmy a dátové štruktúry}
-    % write here
-\section{Záver}
-    % write here
-\section{Literatúra}
-    % idk ci je treba, popripade mozme zrusit
-\section{Prílohy}
-    % diagramy, tabulky, ...
 \end{document}
