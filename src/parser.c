@@ -20,7 +20,9 @@ node *parse_member(token_array *arr, node *prev);
 void block_append(node *bl, node *n2);
 static node *parse_body(token_array *arr);
 
-// duplicate string
+/// @brief duplicatres string
+/// @param s, Source string
+/// @return Pointer to the newly allocated string
 char *strduplicate(const char *s) {
   char *p = malloc(strlen(s) + 1);
   if (p != NULL) {
@@ -29,6 +31,9 @@ char *strduplicate(const char *s) {
   return p;
 }
 
+/// @brief Checks if a token is a keyword
+/// @param t, Token to inspect
+/// @return True if the token is a recognized keyword, else false
 bool is_keyword(Token *t) {
   return t->type == TOKEN_KW_DEF || t->type == TOKEN_KW_DO ||
          t->type == TOKEN_KW_ELSE || t->type == TOKEN_KW_IF ||
@@ -43,6 +48,9 @@ bool is_keyword(Token *t) {
          t->type == TOKEN_KW_BY;
 }
 
+/// @brief Returns readable token name
+/// @param type, Token type
+/// @return Static string name of token type
 const char *token_name(TokenType type) {
   // AI GENERATED: prompt: generate the rest of the cases acording to enum
   // (provided first 2 lines of case and token_type enum)
@@ -109,14 +117,19 @@ const char *token_name(TokenType type) {
   };
 }
 
-// go to next token
+/// @brief go to next token
+/// @param arr, Token array to skip
 void skip_token(token_array *arr) {
   if (arr != NULL && arr->pos < arr->size - 1)
     arr->pos++;
 }
 
-// checks and gets current token from array
-// checks and gets current token from array
+/// @brief Consumes the current token if matches type and data match else it
+/// prints syntax error
+/// @param arr, array of tokens
+/// @param type, expected token type
+/// @param data, expected token data
+/// @return Pointer to the consumed token
 Token *get_token_from_array(token_array *arr, TokenType type, char *data) {
   Token *curr = &arr->token_data[arr->pos];
 
@@ -143,7 +156,10 @@ Token *get_token_from_array(token_array *arr, TokenType type, char *data) {
   return NULL; // Not needed but gcc throws warning without this
 }
 
-// peek at first token
+/// @brief Returns a token with offset without skipping
+/// @param arr, array ofd tokens
+/// @param offset, how far ahead to look
+/// @return peeked token, or NULL if out of bounds
 Token *peek_token_array(token_array *arr, int offset) {
   if (arr->size > 0 && arr->pos + offset < arr->size) {
     return &arr->token_data[offset + arr->pos];
@@ -153,11 +169,16 @@ Token *peek_token_array(token_array *arr, int offset) {
   return NULL; // Not needed but gcc throws warning without this
 }
 
+/// @brief skips to the next token and returns it
+/// @param arr, array of tokens
+/// @return Pointer to the next token
 Token *next_token(token_array *arr) {
   skip_token(arr);
   return peek_token_array(arr, 0);
 }
 
+/// @brief Parses the file prologue import ifj26.*
+/// @param arr, array of tokens
 void parse_prologue(token_array *arr) {
   if (arr->size <= 0)
     print_error("Syntax error, empty file", ERR_SYNTAX, 0, 0);
@@ -178,6 +199,11 @@ void parse_prologue(token_array *arr) {
     get_token_from_array(arr, TOKEN_EOF, NULL);
 }
 
+/// @brief initializes AST node with zeros
+/// @param type, AST node
+/// @param row, line number
+/// @param column, column number
+/// @return Pointer to AST node
 node *create_node(node_type type, int row, int column) {
   node *temp = calloc(1, sizeof(node));
   if (temp == NULL)
@@ -190,6 +216,8 @@ node *create_node(node_type type, int row, int column) {
   return temp;
 }
 
+/// @brief Recursively frees an AST node and all of its nodes data
+/// @param n, AST node to free
 void free_node(node *n) {
   if (n == NULL)
     return;
@@ -308,6 +336,9 @@ void free_node(node *n) {
   free(n);
 }
 
+/// @brief Maps a type keyword token to AST data type
+/// @param curr, token to convert
+/// @return mapped data_types
 data_types parse_type(Token *curr) {
   switch (curr->type) {
   case TOKEN_KW_INT:
@@ -325,6 +356,9 @@ data_types parse_type(Token *curr) {
   }
 }
 
+/// @brief maps an operator token to AST operator
+/// @param curr, operator to convert
+/// @return operator enum
 operator parse_operator(Token * curr) {
   switch (curr->type) {
   case TOKEN_OP_PLUS:
@@ -358,6 +392,9 @@ operator parse_operator(Token * curr) {
   }
 }
 
+/// @brief initializes stack
+/// @param cap, capacity of the stack
+/// @return Pointer to stack
 stack *stack_init(int cap) {
   stack *temp = malloc(sizeof(stack));
   if (temp == NULL)
@@ -374,6 +411,9 @@ stack *stack_init(int cap) {
   return temp;
 }
 
+/// @brief initializes a stack item with zeros
+/// @param t, type of stack item
+/// @return pointer to stack item
 stack_item *create_stack_item(item_type t) {
   stack_item *i = calloc(1, sizeof(stack_item));
   if (i == NULL)
@@ -382,6 +422,9 @@ stack_item *create_stack_item(item_type t) {
   i->type = t;
   return i;
 }
+
+/// @brief free a stack item its AST node
+/// @param si, stack item to free
 void free_stack_item(stack_item *si) {
   if (si->type == node_item && si->ast.n != NULL)
     free_node(si->ast.n);
@@ -389,6 +432,8 @@ void free_stack_item(stack_item *si) {
   free(si);
 }
 
+/// @brief frees all items in a stack
+/// @param s, stack to free
 void free_stack(stack *s) {
   for (int i = 0; i < s->size; i++) {
     free_stack_item(s->items[i]);
@@ -397,6 +442,9 @@ void free_stack(stack *s) {
   free(s);
 }
 
+/// @brief returns the top item from a stack
+/// @param s, stack to pop
+/// @return stack item on top
 stack_item *stack_pop(stack *s) {
   stack_item *si = NULL;
   if (s->size > 0) {
@@ -406,6 +454,9 @@ stack_item *stack_pop(stack *s) {
   return si;
 }
 
+/// @brief pushes a stack item into top of the stack
+/// @param si, stack item to push
+/// @param s, stack to push to
 void stack_add(stack_item *si, stack *s) {
   if (s->cap == s->size) {
     stack_item **temp = realloc(s->items, s->cap * 2 * sizeof(stack_item *));
@@ -418,6 +469,11 @@ void stack_add(stack_item *si, stack *s) {
   s->size++;
 }
 
+/// @brief maps token to a precedence-table column index
+/// @param arr, array of tokens
+/// @param depth, nesting depth
+/// @param prev_index, previous precedence-table column index
+/// @return column index in the precedence-table
 int token_to_index(token_array *arr, int depth, int prev_index) {
   Token *curr = peek_token_array(arr, 0);
 
@@ -478,6 +534,9 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   }
 }
 
+/// @brief Parses a string of interpolation expression into an AST node
+/// @param arr, array of tokens
+/// @return pointer node_interp AST node
 node *parse_interp(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *in = create_node(node_interp, curr->row, curr->column);
@@ -518,6 +577,10 @@ node *parse_interp(token_array *arr) {
   return in;
 }
 
+/// @brief Parses member and member calls (a.floor().round(). ...)
+/// @param arr, array of tokens
+/// @param prev, previous (usually identifier) AST node
+/// @return AST node of member chain
 node *parse_member(token_array *arr, node *prev) {
   Token *curr = peek_token_array(arr, 0);
   while (curr->type == TOKEN_DOT) {
@@ -581,6 +644,9 @@ node *parse_member(token_array *arr, node *prev) {
   return prev;
 }
 
+/// @brief parses term: literal, identifier, unit value, or interpolated string
+/// @param arr, array of tokens
+/// @return pointer to term AST node
 node *parse_term(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
 
@@ -655,6 +721,9 @@ node *parse_term(token_array *arr) {
   return NULL;
 }
 
+/// @brief returns the precedence-table index of top terminal on the stack
+/// @param st, stack of expressions
+/// @return terminal index, or 7 if none exists
 int top_terminal(stack *st) {
   if (st == NULL || st->size <= 0)
     return 7;
@@ -669,6 +738,9 @@ int top_terminal(stack *st) {
   return st->items[i]->ast.term;
 }
 
+/// @brief uses shift, reduce, parenthesis for reduction step
+/// @param st, expression stack
+/// @param curr, current token
 void reduce_stack(stack *st, Token *curr) {
   node *nn = NULL;
 
@@ -737,7 +809,10 @@ void reduce_stack(stack *st, Token *curr) {
   stack_add(si, st);
 }
 
-static node *parse_inline_body(token_array *arr) {
+/// @brief parses indented block or single inline expression
+/// @param arr, array of tokens
+/// @return pointer to AST node node_block
+node *parse_inline_body(token_array *arr) {
   if (peek_token_array(arr, 0)->type == TOKEN_EOL) {
     skip_token(arr);
     get_token_from_array(arr, TOKEN_IND, NULL);
@@ -751,6 +826,9 @@ static node *parse_inline_body(token_array *arr) {
   return blk;
 }
 
+/// @brief Parses an if-then-else expression
+/// @param arr, array of tokens at 'if'
+/// @return pointer to AST node node_if
 node *parse_if_expr(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *n = create_node(node_if, curr->row, curr->column);
@@ -777,6 +855,9 @@ node *parse_if_expr(token_array *arr) {
   return n;
 }
 
+/// @brief parses operand expression: calls, if, terms
+/// @param arr, array of tokens
+/// @return pointer to AST node
 node *parse_operand(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   if (curr->type == TOKEN_IDENTIFIER &&
@@ -787,6 +868,9 @@ node *parse_operand(token_array *arr) {
   return parse_term(arr);
 }
 
+/// @brief parses a full expression using shift and reduce
+/// @param arr, array of tokens
+/// @return pointer to AST node expression
 node *parse_expr(token_array *arr) {
   stack *st = stack_init(2);
 
@@ -886,13 +970,15 @@ node *parse_expr(token_array *arr) {
   free(top);
   free_stack(st);
 
-  // known limitation: member access only after a whole parenthesised expr
   if (peek_token_array(arr, 0)->type == TOKEN_DOT)
     n = parse_member(arr, n);
 
   return n;
 }
 
+/// @brief parses a function call
+/// @param arr, array of tokens
+/// @return pointer to AST node node_call
 node *parse_call(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *call = create_node(node_call, curr->row, curr->column);
@@ -951,6 +1037,9 @@ node *parse_call(token_array *arr) {
   return call;
 }
 
+/// @brief parses return and optional return value
+/// @param arr, tokens of array
+/// @return pointer to AST node node_return
 node *parse_return(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *ret = create_node(node_return, curr->row, curr->column);
@@ -961,6 +1050,11 @@ node *parse_return(token_array *arr) {
   return ret;
 }
 
+/// @brief parses 'val' and 'var' declarations with optional type and
+/// initializer
+/// @param arr, array of tokens
+/// @param curr, current token pointing to 'val' or 'var'
+/// @return pointer to AST node node_val_var
 node *parse_val_var(token_array *arr, Token *curr) {
   node *vl = create_node(node_val_var, curr->row, curr->column);
   vl->as.val_var.changable = (curr->type != TOKEN_KW_VAL);
@@ -997,6 +1091,9 @@ node *parse_val_var(token_array *arr, Token *curr) {
   return NULL;
 }
 
+/// @brief parses an assign (x = 5)
+/// @param arr, array of tokens at id
+/// @return pointer to AST node node_asign
 node *parse_asign(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *as = create_node(node_asign, curr->row, curr->column);
@@ -1014,7 +1111,10 @@ node *parse_asign(token_array *arr) {
   return as;
 }
 
-static void for_add_guard(node *f, node *g) {
+/// @brief appends guard condition AST node to a for-loop node
+/// @param f, AST node for node_for
+/// @param g, guard expresion AST node to append
+void for_add_guard(node *f, node *g) {
   if (f->as.for_n.guard_count == f->as.for_n.guard_cap) {
     int nc = f->as.for_n.guard_cap == 0 ? 1 : f->as.for_n.guard_cap * 2;
     node **tmp = realloc(f->as.for_n.guards, sizeof(node *) * nc);
@@ -1026,7 +1126,10 @@ static void for_add_guard(node *f, node *g) {
   f->as.for_n.guards[f->as.for_n.guard_count++] = g;
 }
 
-static void for_generator(token_array *arr, node *f) {
+/// @brief parses loop variable, range bounds, optional step of a for-loop
+/// @param arr, array of tokens
+/// @param f, AST node node_for
+void for_generator(token_array *arr, node *f) {
   Token *curr = peek_token_array(arr, 0);
   if (curr->type != TOKEN_IDENTIFIER)
     print_error("Syntax error, expected identifier", ERR_SYNTAX, curr->row,
@@ -1053,7 +1156,10 @@ static void for_generator(token_array *arr, node *f) {
   }
 }
 
-static void for_guards(token_array *arr, node *f) {
+/// @brief parses zero or more 'if' guards
+/// @param arr, array of tokens
+/// @param f, AST node node_for
+void for_guards(token_array *arr, node *f) {
   while (peek_token_array(arr, 0)->type == TOKEN_KW_IF) {
     skip_token(arr);
     for_add_guard(f, parse_expr(arr));
@@ -1062,6 +1168,9 @@ static void for_guards(token_array *arr, node *f) {
   }
 }
 
+/// @brief parses a whole for loop
+/// @param arr, array of tokens
+/// @return pointer to AST node node_for
 node *parse_for(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   node *f = create_node(node_for, curr->row, curr->column);
@@ -1085,6 +1194,9 @@ node *parse_for(token_array *arr) {
   return f;
 }
 
+/// @brief appends statement or expression AST node to block node
+/// @param bl, AST node node_block
+/// @param n2, AST node to append
 void block_append(node *bl, node *n2) {
   node **tmp =
       realloc(bl->as.block.items, sizeof(node *) * (bl->as.block.size + 1));
@@ -1094,6 +1206,9 @@ void block_append(node *bl, node *n2) {
   bl->as.block.items[bl->as.block.size++] = n2;
 }
 
+/// @brief parses a single statement
+/// @param arr, array of tokens
+/// @return pointer to AST node statement
 node *parse_statement(token_array *arr) {
   Token *curr = peek_token_array(arr, 0);
   switch (curr->type) {
@@ -1125,6 +1240,11 @@ node *parse_statement(token_array *arr) {
   return e;
 }
 
+/// @brief parses a sequence of statements in an indented or single-line block
+/// into AST node node_block
+/// @param arr, array of tokens
+/// @param indent, boolean value if idend was present
+/// @return pointer to AST node node_block
 node *parse_block(token_array *arr, bool indent) {
   Token *curr = peek_token_array(arr, 0);
   node *bl = create_node(node_block, curr->row, curr->column);
@@ -1177,7 +1297,11 @@ node *parse_block(token_array *arr, bool indent) {
   return bl;
 }
 
-static node *parse_body(token_array *arr) {
+/// @brief parses an indented block or an inline block body acording to indent
+/// (eol)
+/// @param arr, array of tokens
+/// @return pointer to the created node_block AST node
+node *parse_body(token_array *arr) {
   if (peek_token_array(arr, 0)->type == TOKEN_EOL) {
     skip_token(arr);
     get_token_from_array(arr, TOKEN_IND, NULL);
@@ -1186,6 +1310,9 @@ static node *parse_body(token_array *arr) {
   return parse_block(arr, false);
 }
 
+/// @brief Parses while loop and body
+/// @param arr, array of tokens
+/// @return pointer to AST node node_while
 node *parse_while(token_array *arr) {
   get_token_from_array(arr, TOKEN_KW_WHILE, NULL);
 
@@ -1200,6 +1327,9 @@ node *parse_while(token_array *arr) {
   return wh;
 }
 
+/// @brief parses if, then, else statement and chained else if statements
+/// @param arr, array of tokens
+/// @return pointer to AST node node_if
 node *parse_if(token_array *arr) {
   get_token_from_array(arr, TOKEN_KW_IF, NULL);
 
@@ -1232,6 +1362,9 @@ node *parse_if(token_array *arr) {
   return if_else;
 }
 
+/// @brief Parses paramaters of a funtion separated by ','
+/// @param arr, array of tokens
+/// @param n, AST node to add parsed parameters
 void parse_params(token_array *arr, node *n) {
   Token *curr = peek_token_array(arr, 0);
 
@@ -1299,7 +1432,10 @@ void parse_params(token_array *arr, node *n) {
   }
 }
 
-// parses head of a function: (n: Int):Int =
+/// @brief parses a function header (name, parameter lists, optional return
+/// type, body)
+/// @param arr, array of tokens
+/// @param n, AST node to add parsed parameters of header
 void parse_function_header(token_array *arr, node *n) {
   data_types type;
   bool explicit = false;
@@ -1359,7 +1495,10 @@ void parse_function_header(token_array *arr, node *n) {
     n->as.function.body = parse_block(arr, false);
 }
 
-// parses def function
+/// @brief parses a 'def' into AST node function
+/// @param arr, array of tokens
+/// @param curr, current token at 'def'
+/// @return pointer to AST node node_function
 node *parse_def(token_array *arr, Token *curr) {
   node *n = create_node(node_function, curr->row, curr->column);
 
@@ -1373,7 +1512,10 @@ node *parse_def(token_array *arr, Token *curr) {
   return n;
 }
 
-// parses @main def function
+/// @brief parses '@main'
+/// @param arr, array of tokens at '@main'
+/// @param curr, curret token
+/// @return pointer to AST node node_function
 node *parse_main(token_array *arr, Token *curr) {
   get_token_from_array(arr, TOKEN_AT, NULL);
   get_token_from_array(arr, TOKEN_IDENTIFIER, "main");
@@ -1392,6 +1534,9 @@ node *parse_main(token_array *arr, Token *curr) {
   return NULL;
 }
 
+/// @brief parses an 'extension' block
+/// @param arr, array of tokens
+/// @return pointer to AST node node_extension
 node *parse_extension(token_array *arr) { // EXTKW extension
   Token *curr = peek_token_array(arr, 0);
 
@@ -1452,6 +1597,9 @@ node *parse_extension(token_array *arr) { // EXTKW extension
   return ext;
 }
 
+/// @brief parses the whole program (prologue, functions and bodys of funtions)
+/// @param arr, array of tokens
+/// @return pointer AST node node_program
 node *parse_program(token_array *arr) {
   parse_prologue(arr);
 
