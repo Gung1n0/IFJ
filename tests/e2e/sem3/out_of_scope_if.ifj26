@@ -1,0 +1,14 @@
+// TEST: variable from an if branch used after the if
+// SPEC: 2.2, 2.4
+// EXPECT: compile=3 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  if a < 2 then
+    val b = 5
+    print(b)
+  else
+    print(a)
+  print(b)

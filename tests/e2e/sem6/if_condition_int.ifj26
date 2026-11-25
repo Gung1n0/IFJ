@@ -1,0 +1,12 @@
+// TEST: if condition of type Int
+// SPEC: 2.4
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  if a then
+    print("x")
+  else
+    print("y")

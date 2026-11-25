@@ -1,0 +1,24 @@
+// TEST: shadowing in if-branch and loop body, outer variable visible again after block
+// SPEC: 2.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val x = 1
+  if x < 5 then
+    val x = "inner"
+    print(x)
+    print("\n")
+  else
+    print("no\n")
+  print(x)
+  print("\n")
+  var i = 0
+  while i < 2 do
+    val x = i * 10
+    print(x)
+    print(" ")
+    i = i + 1
+  print(x)
+  print("\n")

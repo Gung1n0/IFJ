@@ -1,0 +1,19 @@
+// TEST: body ends with if, no return type, branches Unit -> Unit inferred
+// SPEC: 2.3 (rule 3)
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def say(x: Int) =
+  if x > 0 then
+    print("pos\n")
+  else
+    print("neg\n")
+
+@main def main(): Unit =
+  say(1)
+  val m = -1
+  say(m)
+  val r = say(0)
+  print(r)
+  print("\n")

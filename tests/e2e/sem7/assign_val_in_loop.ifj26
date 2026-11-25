@@ -1,0 +1,12 @@
+// TEST: assignment to val inside a loop body
+// SPEC: 2.2
+// EXPECT: compile=7 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  var i = 0
+  while i < 2 do
+    a = i
+    i = i + 1

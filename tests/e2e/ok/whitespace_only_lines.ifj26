@@ -1,0 +1,15 @@
+// TEST: lines with only spaces or only a tab are ignored (tab only forbidden on non-empty lines)
+// SPEC: 1.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: empty lines and lines with only spaces/tab do not change indentation (1.2)
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+      
+	
+  print(a)
+
+   
+  print("\n")

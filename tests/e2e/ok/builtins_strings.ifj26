@@ -1,0 +1,43 @@
+// TEST: strLength, subStr (valid ranges), ord (incl. -1 cases), chr
+// SPEC: 4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val s = "Hello"
+  val n = strLength(s)
+  print(n)
+  print("\n")
+  val z = strLength("")
+  print(z)
+  print("\n")
+  val a = subStr(s, 1, 4)
+  print(a)
+  print("|\n")
+  val b = subStr(s, 0, 5)
+  print(b)
+  print("|\n")
+  val c = subStr(s, 2, 2)
+  print(c)
+  print("|\n")
+  val o = ord(s, 0)
+  print(o)
+  print("\n")
+  val o2 = ord(s, 4)
+  print(o2)
+  print("\n")
+  val o3 = ord(s, 5)
+  print(o3)
+  print("\n")
+  val o4 = ord("", 0)
+  print(o4)
+  print("\n")
+  val m = -1
+  val o5 = ord(s, m)
+  print(o5)
+  print("\n")
+  val ch = chr(65)
+  print(ch)
+  val nl = chr(10)
+  print(nl)

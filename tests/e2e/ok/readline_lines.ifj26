@@ -1,0 +1,17 @@
+// TEST: readLine: empty line, last line without \n, after EOF returns ""
+// SPEC: 4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: readLine keeps the \n, after EOF it returns ""
+import ifj26.*
+
+@main def main(): Unit =
+  val x = readLine()
+  val y = readLine()
+  val z = readLine()
+  val w = readLine()
+  print(x)
+  print(y)
+  print(z)
+  print(w)
+  print("|")

@@ -1,0 +1,11 @@
+// TEST: expression as call argument (only terms in the base assignment)
+// SPEC: 2.3
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// EXT: FUNEXP (expectation holds only if this extension is NOT implemented)
+// HINT: in the base assignment an argument is only a term; if the team implements FUNEXP, add it to the file rozsireni
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  print(a + 1)

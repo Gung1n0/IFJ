@@ -1,0 +1,27 @@
+// TEST: call before definition, mutual recursion, return of a call
+// SPEC: 2.3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = isEven(10)
+  print(a)
+  print("\n")
+  val b = isEven(7)
+  print(b)
+  print("\n")
+
+def isEven(n: Int): Int =
+  if n == 0 then
+    return 1
+  else
+    val m = n - 1
+    return isOdd(m)
+
+def isOdd(n: Int): Int =
+  if n == 0 then
+    return 0
+  else
+    val m = n - 1
+    return isEven(m)

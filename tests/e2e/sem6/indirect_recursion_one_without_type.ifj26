@@ -1,0 +1,17 @@
+// TEST: indirect recursion, one function of the cycle has no return type
+// SPEC: 2.3
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: specification 2.3: the return type is required for direct AND indirect recursion (Scala allows it, IFJ26 does not)
+import ifj26.*
+
+def a(n: Int): Int =
+  val m = n - 1
+  b(m)
+
+def b(n: Int) =
+  val m = n - 1
+  a(m)
+
+@main def main(): Unit =
+  print("x")

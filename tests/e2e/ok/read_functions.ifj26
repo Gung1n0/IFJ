@@ -1,0 +1,37 @@
+// TEST: readLine (keeps \n), readInt/readDouble incl. invalid input and EOF
+// SPEC: 4, 7.4.4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: readLine keeps the \n; readInt/readDouble return 0 on invalid input or EOF (READ returns nil)
+import ifj26.*
+
+@main def main(): Unit =
+  val s = readLine()
+  print(s)
+  val a = readInt()
+  print(a)
+  print("\n")
+  val b = readInt()
+  print(b)
+  print("\n")
+  val c = readInt()
+  print(c)
+  print("\n")
+  val d = readInt()
+  print(d)
+  print("\n")
+  val e = readDouble()
+  print(e)
+  print("\n")
+  val f = readDouble()
+  print(f)
+  print("\n")
+  val g = readDouble()
+  print(g)
+  print("\n")
+  val h = readInt()
+  print(h)
+  print("\n")
+  val t = readLine()
+  print(t)
+  print("|\n")

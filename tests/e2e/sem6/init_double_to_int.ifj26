@@ -1,0 +1,9 @@
+// TEST: Double value for Int variable
+// SPEC: 1.3, 2.2
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a: Int = 1.5
+  print(a)

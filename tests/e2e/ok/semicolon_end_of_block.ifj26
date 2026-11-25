@@ -1,0 +1,13 @@
+// TEST: semicolon between statements before end of block
+// SPEC: 1.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1; print(a)
+  if a < 2 then
+    print("x"); print("y")
+  else
+    print("z")
+  print("\n")

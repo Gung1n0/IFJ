@@ -1,0 +1,9 @@
+// TEST: entry function with another name, @main on its own line
+// SPEC: 2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main
+def start(): Unit =
+  print("start\n")

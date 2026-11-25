@@ -1,0 +1,22 @@
+// TEST: print of Int (%d), Double (%a), negative values, empty string
+// SPEC: 4, 7.4.4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: print of Double uses %a (WRITE), toStr uses %.2f (FLOAT2STR)
+import ifj26.*
+
+@main def main(): Unit =
+  print(0)
+  print("\n")
+  val n = -17
+  print(n)
+  print("\n")
+  print(0.1)
+  print("\n")
+  print(100.0)
+  print("\n")
+  val m = -2.5
+  print(m)
+  print("\n")
+  print("")
+  print("x\n")

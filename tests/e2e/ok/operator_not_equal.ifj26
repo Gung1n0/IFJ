@@ -1,0 +1,37 @@
+// TEST: operator != on Int, Double and String
+// SPEC: 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: parser must create OP_NOT_EQUAL for != (idx_to_op, parse_operator), not OP_NEGATE - otherwise semantics reports type error 6
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  val b = 2
+  if a != b then
+    print("T")
+  else
+    print("F")
+  if a != 1 then
+    print("T")
+  else
+    print("F")
+  val x = 1.5
+  if x != 1.5 then
+    print("T")
+  else
+    print("F")
+  if x != a then
+    print("T")
+  else
+    print("F")
+  val s = "q"
+  if s != "q" then
+    print("T")
+  else
+    print("F")
+  if s != "r" then
+    print("T")
+  else
+    print("F")
+  print("\n")

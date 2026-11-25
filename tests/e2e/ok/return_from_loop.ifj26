@@ -1,0 +1,22 @@
+// TEST: return from inside if inside while, return after loop
+// SPEC: 2.3 (rule 1)
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def firstOver(limit: Int): Int =
+  var i = 0
+  while i < 100 do
+    if i * i > limit then
+      return i
+    else
+      i = i + 1
+  return -1
+
+@main def main(): Unit =
+  val a = firstOver(50)
+  print(a)
+  print("\n")
+  val b = firstOver(10000)
+  print(b)
+  print("\n")
