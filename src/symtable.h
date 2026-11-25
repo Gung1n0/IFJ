@@ -46,6 +46,13 @@ typedef struct sym_function {
 
   sym_variable **locals;
   int locals_count;
+
+  // PARAMLISTS
+  int lists_count;
+  int *list_sizes;
+
+  // EXTKW
+  bool is_extension;
 } sym_function;
 
 /// @brief Attemps to initialize sym_table with default values, and calls

@@ -7,6 +7,13 @@
 
 #include "typerules.h"
 #include "enums.h"
+#include <string.h>
+
+// VALMEM extension
+#define TOSTRING_MEMBER_NAME "toString"
+#define TOINT_MEMBER_NAME "toInt"
+#define FLOOR_MEMBER_NAME "floor"
+#define LENGTH_MEMBER_NAME "length"
 
 /// @brief Checks, if 2 data types are numeric (INT / DOUBLE)
 /// @param type1 Operand type 1 to check
@@ -78,6 +85,11 @@ op_result binary_operation(operator op, data_types type1, data_types type2) {
       return (op_result){true, TYPE_BOOLEAN, type1};
 
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+  case OP_AND:
+  case OP_OR:
+    if (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)
+      return (op_result){true, TYPE_BOOLEAN, TYPE_BOOLEAN};
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   default:
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   }
@@ -89,6 +101,39 @@ op_result unary_operation(operator op, data_types operand) {
       return (op_result){true, operand, operand};
     return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
   }
+  if (op == OP_NOT) {
+    if (operand == TYPE_BOOLEAN)
+      return (op_result){true, TYPE_BOOLEAN, TYPE_BOOLEAN};
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+  }
+  return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+}
+
+/// @brief Checks to see if 2 types can be unified (part of CONTROL extension)
+op_result unify_types(data_types a, data_types b) {
+  if (a == TYPE_UNKNOWN || b == TYPE_UNKNOWN)
+    return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+
+  if (a == b)
+    return (op_result){true, a, a};
+
+  if ((a == TYPE_INT && b == TYPE_DOUBLE) ||
+      (a == TYPE_DOUBLE && b == TYPE_INT))
+    return (op_result){true, TYPE_DOUBLE, TYPE_DOUBLE};
+  return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
+}
+
+/// @brief Looks up reciever and result data types from member name (part of
+/// VALMEM extension)
+op_result look_up_member_data_type(char *name) {
+  if (strcmp(name, TOSTRING_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_STRING, TYPE_ANY};
+  if (strcmp(name, TOINT_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_INT, TYPE_DOUBLE};
+  if (strcmp(name, FLOOR_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_DOUBLE, TYPE_DOUBLE};
+  if (strcmp(name, LENGTH_MEMBER_NAME) == 0)
+    return (op_result){true, TYPE_INT, TYPE_STRING};
   return (op_result){false, TYPE_UNKNOWN, TYPE_UNKNOWN};
 }
 
@@ -127,9 +172,6 @@ bool is_return_compatible(data_types declared, data_types value) {
 
 /// @brief Checks if a data type is a valid varaible type
 bool is_valid_variable_type(data_types type) {
-  // remove for BOOLTHEN extension
-  if (type == TYPE_BOOLEAN)
-    return false;
   if (type == TYPE_UNKNOWN || type == TYPE_ANY)
     return false;
   return true;

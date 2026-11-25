@@ -11,6 +11,9 @@
 #define BUILTIN_PARAM(param_name, param_type)                                  \
   {.name = (param_name), .data_type = (param_type)}
 
+#define DEFAULT_LIST_COUNT 1
+#define DEFAULT_LIST_SIZE 1
+
 // print
 #define PRINT_NAME "print"
 #define PRINT_PARAM_COUNT 1
@@ -77,5 +80,11 @@
 #define CHR_PARAM_COUNT 1
 #define CHR_PARAMS ((const sym_parameter[]){BUILTIN_PARAM("code", TYPE_INT)})
 #define CHR_RETURN TYPE_STRING
+
+// readBoolean
+#define READBOOL_NAME "readBoolean"
+#define READBOOL_PARAM_COUNT 0
+#define READBOOL_PARAMS NULL
+#define READBOOL_RETURN TYPE_BOOLEAN
 
 #endif

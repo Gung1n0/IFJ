@@ -36,7 +36,52 @@ typedef enum {
   node_unar,
   node_binar,
   node_call,
+  node_member,
+  node_extension,
+  node_for,
+  node_interp
 } node_type;
+
+typedef enum {
+  STATE_START_LINE,
+  STATE_SPACE,
+  STATE_EOL,
+  STATE_IND,
+  STATE_DED,
+  STATE_READ,
+  STATE_ID,
+  STATE_INT,
+  STATE_DOUBLE,
+  STATE_STRING,
+  STATE_MULTILINE_STRING,
+  STATE_STRING_LOAD,
+  STATE_CHAR,
+  STATE_NUM,
+  STATE_OP_ASSIGN,
+  STATE_OP_NEQ,
+  STATE_LESS,
+  STATE_MORE,
+  STATE_EOF,
+  STATE_MAIN,
+  STATE_IMPORT,
+  STATE_UNIT,
+  STATE_VAL,
+  STATE_VAR,
+  STATE_RETURN,
+  STATE_WHILE,
+  STATE_THEN,
+  STATE_DOUBLE_LOAD_E,
+  STATE_DOUBLE_LOAD,
+  STATE_DOUBLE_LOAD_DOT,
+  STATE_UNDERSC_LOAD,
+  STATE_IDENTIFIER,
+  STATE_SLASH,
+  STATE_COMM,
+  STATE_COMM_LVL,
+  STATE_COMM_EOL,
+  STATE_NUM_ZERO,
+  STATE_E_SIGN,
+} State;
 
 typedef enum {
   OP_ADD,
@@ -51,7 +96,10 @@ typedef enum {
   OP_GREATER,
   OP_GREATER_OR_EQUAL,
   OP_NOT_EQUAL,
-  OP_NONE
+  OP_NONE,
+  OP_NOT, // BOOLTHEN extention
+  OP_AND, // BOOLTHEN extention
+  OP_OR   // BOOLTHEN extention
 } operator;
 
 typedef enum {
@@ -86,6 +134,20 @@ typedef enum {
   TOKEN_KW_RETURN,
   TOKEN_KW_WHILE,
   TOKEN_KW_THEN,
+  TOKEN_KW_EXTENSION, // EXTKW extention
+  TOKEN_KW_BOOLEAN,   // BOOLTHEN extention
+  TOKEN_KW_FOR,       // CONTROLL extention
+  TOKEN_KW_TO,        // CONTROLL extention
+  TOKEN_KW_UNTIL,     // CONTROLL extention
+  TOKEN_KW_BY,        // CONTROLL extention
+  TOKEN_KW_ARROW,     // CONTROLL extention
+
+  TOKEN_INTERP_START,
+  TOKEN_INTERP_TEXT,
+  TOKEN_INTERP_ID,
+  TOKEN_INTERP_EXPR_START,
+  TOKEN_INTERP_EXPR_END,
+  TOKEN_INTERP_END,
 
   TOKEN_OP_PLUS,    // +
   TOKEN_OP_MINUS,   // -
@@ -107,6 +169,12 @@ typedef enum {
   TOKEN_DOT,   // .
   TOKEN_AT,    // @
   TOKEN_SEMICOLON,
+
+  TOKEN_TRUE,   // BOOLTHEN extention
+  TOKEN_FALSE,  // BOOLTHEN extention
+  TOKEN_OP_AND, // BOOLTHEN extention
+  TOKEN_OP_OR,  // BOOLTHEN extention
+  TOKEN_OP_NOT, // BOOLTHEN extention
 
   TOKEN_EOL,
   TOKEN_EOF,

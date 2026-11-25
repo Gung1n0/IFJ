@@ -32,6 +32,19 @@ op_result binary_operation(operator op, data_types type1, data_types type2);
 /// @return Returns different results depending on the operand
 op_result unary_operation(operator op, data_types operand);
 
+/// @brief Checks to see if 2 types can be unified (part of CONTROL extension)
+/// @param a Type a to compare
+/// @param b Type b to compare
+/// @return Returns true and type if types can be unified, otherwise false and
+/// unknown
+op_result unify_types(data_types a, data_types b);
+
+/// @brief Looks up reciever and result data types from member name (part of
+/// VALMEM extension)
+/// @param name Name to look up
+/// @return Returns differnet results depending on which member is looked up
+op_result look_up_member_data_type(char *name);
+
 /// @brief Checks type value can be assigned to type target (e.g. double = int)
 /// @param target Target type
 /// @param value Source type
