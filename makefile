@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -std=c11 -I$(SRC_DIR)
 SRC_DIR = src
 OBJ_DIR = obj
 TARGET = main
-ARCHIVE = IFJprojekt26.zip
+ARCHIVE = xbadint00.zip
 
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 HDRS = $(wildcard $(SRC_DIR)/*.h)
