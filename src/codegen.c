@@ -929,6 +929,12 @@ static void if_generate(gen_context *ctx, node *stmnt, bool is_keep_value) {
   label_(operand_numbered("if", if_label, "end"));
 }
 
+/// @brief checks if for cycle ends, compares loop variable with end variable, if the condition is met, jumps to the end label
+/// @param loop_variable variable of the loop cycle
+/// @param end_variable end variable of the loop cycle
+/// @param until true if the loop is until, false if the loop is to
+/// @param descend true if step is negative, counts down
+/// @param end_label lable behind the for cycle
 static void for_end_generate(gen_operand loop_variable,
                              gen_operand end_variable, bool until, bool descend,
                              gen_operand end_label) {
@@ -944,6 +950,28 @@ static void for_end_generate(gen_operand loop_variable,
   jumpifeqs_(end_label);
 }
 
+
+/// @brief CONTROL, 
+/// @param ctx generation context
+/// @param stmnt node of the for statement
+
+// expression from, pops i
+// expression to, pops $for_end
+// expression step, pops $for_step
+// step != 0, jump for$num$start, else exit int@40
+// label for$num$start
+// step < 0, jump for$num$down
+// end check up
+// jump for$num$body
+// label for$num$down
+// end check down
+// label for$num$body
+// guards, false, jump for$num$next
+// block
+// label for$num$next
+// i = i + step
+// jump for$num$start
+// label for$num$end
 static void for_generate(gen_context *ctx, node *stmnt) {
   int for_label = ctx->label_cnt++;
   gen_operand end_variable = operand_variable(stmnt->as.for_n.end_var);
@@ -952,11 +980,13 @@ static void for_generate(gen_context *ctx, node *stmnt) {
   gen_operand end_label = operand_numbered("for", for_label, "end");
   bool until = !stmnt->as.for_n.inclusive;
 
+  // evaluate only once
   expression_generate(ctx, stmnt->as.for_n.from);
   pops_(loop_variable);
   expression_generate(ctx, stmnt->as.for_n.to);
   pops_(end_variable);
 
+  // step evaluated once, else error 40
   if (stmnt->as.for_n.step != NULL) {
     step = operand_variable(stmnt->as.for_n.step_var);
     expression_generate(ctx, stmnt->as.for_n.step);
@@ -970,6 +1000,7 @@ static void for_generate(gen_context *ctx, node *stmnt) {
 
   label_(operand_numbered("for", for_label, "start"));
 
+  //
   if (stmnt->as.for_n.step != NULL) {
     pushs_(step);
     pushs_(operand_int(0));
@@ -990,6 +1021,8 @@ static void for_generate(gen_context *ctx, node *stmnt) {
     jumpifeqs_(operand_numbered("for", for_label, "next"));
   }
   block_generate(ctx, stmnt->as.for_n.body, false);
+
+  // i = i + step
   label_(operand_numbered("for", for_label, "next"));
   pushs_(loop_variable);
   pushs_(step);
