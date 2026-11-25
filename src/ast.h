@@ -117,20 +117,25 @@ struct node {
       int size;
     } extension; // EXTKW extention
     struct {
-      char *var_name; // loop variable, e.g. "i"
-      node *from;     // start of the range
-      node *to;       // end of the range
-      node *step;     // by expression, NULL if there is no by
-      bool inclusive; // true: to (end included), false: until
-      node **guards;  // if conditions, in source order
+      char *var_name;
+      node *from;
+      node *to;
+      node *step;
+      bool inclusive;
+      node **guards;
       int guard_count;
       int guard_cap;
-      node *body; // always a node_block, even for a one-line body
+      node *body;
 
       // filled in by semantics, not by the parser
       struct sym_variable *end_var;
       struct sym_variable *step_var;
     } for_n; // CONTROL extension
+
+    struct {
+      node **parts;
+      int size;
+    } interp;
   } as;
 };
 

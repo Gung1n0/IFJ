@@ -38,7 +38,8 @@ typedef enum {
   node_call,
   node_member,
   node_extension,
-  node_for
+  node_for,
+  node_interp
 } node_type;
 
 typedef enum {
@@ -140,6 +141,13 @@ typedef enum {
   TOKEN_KW_UNTIL,     // CONTROLL extention
   TOKEN_KW_BY,        // CONTROLL extention
   TOKEN_KW_ARROW,     // CONTROLL extention
+
+  TOKEN_INTERP_START,
+  TOKEN_INTERP_TEXT,
+  TOKEN_INTERP_ID,
+  TOKEN_INTERP_EXPR_START,
+  TOKEN_INTERP_EXPR_END,
+  TOKEN_INTERP_END,
 
   TOKEN_OP_PLUS,    // +
   TOKEN_OP_MINUS,   // -
