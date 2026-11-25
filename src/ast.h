@@ -12,6 +12,7 @@ typedef struct {
   data_types types;
   int row;
   int column;
+  int list; // PARAMSLIST extention, idx of list
 } param;
 
 typedef struct node node;
@@ -39,6 +40,8 @@ struct node {
       param *params;
       int param_count;
       node *body;
+      bool no_params;  // paramlistls extention
+      int lists_count; // paramlistls extention
     } function;
     struct {
       node **items;
@@ -76,6 +79,7 @@ struct node {
       int i;
       double d;
       char *s;
+      bool b; // BOOLTHEN extention
     } lit;
     struct {
       char *name;
@@ -94,18 +98,57 @@ struct node {
       node **items;
       int size;
       int cap;
+      int lists_count; // EXTKW extention
+      int *list_sizes; // EXTKW extention
     } call;
+    struct {
+      node *obj;
+      char *name;
+      node **items;
+      int size;
+      int cap;
+      int lists_count;
+      int *list_sizes;
+    } member; // VALMEM EXTENTION
+    struct {
+      char *reciever;
+      data_types type;
+      node **methods;
+      int size;
+    } extension; // EXTKW extention
+    struct {
+      char *var_name;
+      node *from;
+      node *to;
+      node *step;
+      bool inclusive;
+      node **guards;
+      int guard_count;
+      int guard_cap;
+      node *body;
+
+      // filled in by semantics, not by the parser
+      struct sym_variable *end_var;
+      struct sym_variable *step_var;
+    } for_n; // CONTROL extension
+
+    struct {
+      node **parts;
+      int size;
+    } interp;
   } as;
 };
 
 // prints error message and exists with error code
-static inline void print_error(const char *message, int error_code, int row, int column) {
+static inline void print_error(const char *message, int error_code, int row,
+                               int column) {
   fprintf(stderr, "%s at row %i column %i\n", message, row, column);
   exit(error_code);
 }
 
 typedef struct {
   item_type type;
+  operator oper; // však periem
   union {
     node *n;
     int term;
@@ -120,6 +163,6 @@ typedef struct {
 
 typedef struct {
   actions table[15][15];
-} pre_talbe;
+} pre_table;
 
 #endif
