@@ -115,6 +115,10 @@ const char *token_name(TokenType type) {
       [TOKEN_INTERP_EXPR_END] = "'}'",
       [TOKEN_INTERP_END] = "end of interpolated string",
   };
+  size_t count = sizeof(names) / sizeof(names[0]);
+  if ((size_t)type < count && names[type] != NULL)
+    return names[type];
+  return "unknown token";
 }
 
 /// @brief go to next token
@@ -469,6 +473,17 @@ void stack_add(stack_item *si, stack *s) {
   s->size++;
 }
 
+/// @brief checks if a token can begin an operand in an expression
+/// @param t, token to analyze
+/// @return boolean value if is operand the start
+bool is_operand_start(Token *t) {
+  return t->type == TOKEN_IDENTIFIER || t->type == TOKEN_INT_LITERAL ||
+         t->type == TOKEN_DOUBLE_LITERAL || t->type == TOKEN_STRING_LITERAL ||
+         t->type == TOKEN_TRUE || t->type == TOKEN_FALSE ||
+         t->type == TOKEN_INTERP_START || t->type == TOKEN_KW_IF ||
+         t->type == TOKEN_LPAR;
+}
+
 /// @brief maps token to a precedence-table column index
 /// @param arr, array of tokens
 /// @param depth, nesting depth
@@ -481,6 +496,15 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   if (arr->pos + 1 < arr->size)
     next = peek_token_array(arr, 1);
 
+  bool after_operand = (prev_index == 8 || prev_index == 6);
+
+  if (curr->type == TOKEN_KW_IF && after_operand)
+    return 7;
+
+  if (after_operand && arr->pos > 0 &&
+      arr->token_data[arr->pos - 1].type == TOKEN_DED && is_operand_start(curr))
+    return 7;
+
   if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
       curr->type == TOKEN_DOUBLE_LITERAL ||
       curr->type == TOKEN_STRING_LITERAL || curr->type == TOKEN_TRUE ||
@@ -489,7 +513,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
       (curr->type == TOKEN_LPAR && next != NULL && next->type == TOKEN_RPAR))
     return 8;
 
-  if (curr->type == TOKEN_OP_MINUS && (prev_index == 8 || prev_index == 6))
+  if (curr->type == TOKEN_OP_MINUS && after_operand)
     return 1;
   else if (curr->type == TOKEN_OP_MINUS)
     return 4;
@@ -507,7 +531,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   case TOKEN_OP_DIV:
     return 3;
   case TOKEN_OP_NOT:
-    if (prev_index == 8 || prev_index == 6)
+    if (after_operand)
       print_error("Syntax error, unexpected", ERR_SYNTAX, curr->row,
                   curr->column);
     return 4;
@@ -1264,16 +1288,19 @@ node *parse_block(token_array *arr, bool indent) {
     bool more = false;
     bool compound =
         nn->type == node_while || nn->type == node_if || nn->type == node_for;
+
+    bool after_ded =
+        arr->pos > 0 && arr->token_data[arr->pos - 1].type == TOKEN_DED;
+
     if (!compound) {
       if (curr->type == TOKEN_SEMICOLON) {
         more = true;
         skip_token(arr);
       } else if (curr->type == TOKEN_EOL) {
         skip_token(arr);
-
       } else if (curr->type != TOKEN_DED && curr->type != TOKEN_EOF &&
                  curr->type != TOKEN_KW_ELSE && curr->type != TOKEN_RPAR &&
-                 curr->type != TOKEN_COMMA) {
+                 curr->type != TOKEN_COMMA && !after_ded) {
         print_error("Syntax error, expected new line", ERR_SYNTAX, curr->row,
                     curr->column);
       }
@@ -1519,7 +1546,7 @@ node *parse_def(token_array *arr, Token *curr) {
 node *parse_main(token_array *arr, Token *curr) {
   get_token_from_array(arr, TOKEN_AT, NULL);
   get_token_from_array(arr, TOKEN_IDENTIFIER, "main");
-  curr = next_token(arr);
+  curr = peek_token_array(arr, 0);
   if (curr->type == TOKEN_EOL) {
     curr = next_token(arr);
   }
