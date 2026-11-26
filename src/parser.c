@@ -496,6 +496,15 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   if (arr->pos + 1 < arr->size)
     next = peek_token_array(arr, 1);
 
+  bool after_operand = (prev_index == 8 || prev_index == 6);
+
+  if (curr->type == TOKEN_KW_IF && after_operand)
+    return 7;
+
+  if (after_operand && arr->pos > 0 &&
+      arr->token_data[arr->pos - 1].type == TOKEN_DED && is_operand_start(curr))
+    return 7;
+
   if (curr->type == TOKEN_IDENTIFIER || curr->type == TOKEN_INT_LITERAL ||
       curr->type == TOKEN_DOUBLE_LITERAL ||
       curr->type == TOKEN_STRING_LITERAL || curr->type == TOKEN_TRUE ||
@@ -504,11 +513,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
       (curr->type == TOKEN_LPAR && next != NULL && next->type == TOKEN_RPAR))
     return 8;
 
-  if ((prev_index == 8 || prev_index == 6) && arr->pos > 0 &&
-      arr->token_data[arr->pos - 1].type == TOKEN_DED && is_operand_start(curr))
-    return 7;
-
-  if (curr->type == TOKEN_OP_MINUS && (prev_index == 8 || prev_index == 6))
+  if (curr->type == TOKEN_OP_MINUS && after_operand)
     return 1;
   else if (curr->type == TOKEN_OP_MINUS)
     return 4;
@@ -526,7 +531,7 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
   case TOKEN_OP_DIV:
     return 3;
   case TOKEN_OP_NOT:
-    if (prev_index == 8 || prev_index == 6)
+    if (after_operand)
       print_error("Syntax error, unexpected", ERR_SYNTAX, curr->row,
                   curr->column);
     return 4;
