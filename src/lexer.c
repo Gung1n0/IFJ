@@ -5,6 +5,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef enum {
+  STATE_START_LINE,
+  STATE_SPACE,
+  STATE_EOL,
+  STATE_IND,
+  STATE_DED,
+  STATE_READ,
+  STATE_ID,
+  STATE_INT,
+  STATE_DOUBLE,
+  STATE_STRING,
+  STATE_MULTILINE_STRING,
+  STATE_STRING_LOAD,
+  STATE_CHAR,
+  STATE_NUM,
+  STATE_OP_ASSIGN,
+  STATE_OP_NEQ,
+  STATE_LESS,
+  STATE_MORE,
+  STATE_EOF,
+  STATE_MAIN,
+  STATE_IMPORT,
+  STATE_UNIT,
+  STATE_VAL,
+  STATE_VAR,
+  STATE_RETURN,
+  STATE_WHILE,
+  STATE_THEN,
+  STATE_DOUBLE_LOAD_E,
+  STATE_DOUBLE_LOAD,
+  STATE_DOUBLE_LOAD_DOT,
+  STATE_UNDERSC_LOAD,
+  STATE_IDENTIFIER,
+  STATE_SLASH,
+  STATE_COMM,
+  STATE_COMM_LVL,
+  STATE_COMM_EOL,
+  STATE_NUM_ZERO,
+  STATE_E_SIGN,
+  STATE_INTERP_LOAD,
+} State;
+
 typedef struct {
   int *data;
   int top;
@@ -32,6 +74,27 @@ static int e_pen = 0;
 static int comm_lvl = 0;
 static int comm_eol = 0;
 static int line_has_token = 0;
+static int interp_multiline = 0;
+static int in_interp_expr = 0;
+static Token pending_tokens[16];
+static int pending_head = 0;
+static int pending_tail = 0;
+
+void enqueue_token(TokenType type, const char *text) {
+  Token t;
+  t.type = type;
+  t.row = row;
+  t.column = column;
+  if (text != NULL) {
+    size_t len = strlen(text);
+    t.data = malloc(len + 1);
+    memcpy(t.data, text, len + 1);
+  } else {
+    t.data = NULL;
+  }
+  pending_tokens[pending_tail++] = t;
+  line_has_token = 1;
+}
 
 void bufferCheck() {
   if (buffer.len + 1 >= buffer.capacity) {
@@ -71,6 +134,14 @@ void fillToken(TokenType type) {
 }
 
 Token get_token(FILE *source) {
+  if (pending_head < pending_tail) {
+    Token t = pending_tokens[pending_head++];
+    if (pending_head == pending_tail) {
+      pending_head = 0;
+      pending_tail = 0;
+    }
+    return t;
+  }
   buffer.len = 0;
   if (stack.data == NULL) {
     stack.capacity = 10;
@@ -79,7 +150,8 @@ Token get_token(FILE *source) {
     stack.data[0] = 0;
   }
 
-  if (state != STATE_SPACE && state != STATE_DED && state != STATE_EOF) {
+  if (state != STATE_SPACE && state != STATE_DED && state != STATE_EOF &&
+      state != STATE_INTERP_LOAD) {
     if (line_beg) {
       state = STATE_START_LINE;
       space_count = 0;
@@ -137,7 +209,7 @@ Token get_token(FILE *source) {
             break;
           }
           ungetc(next_c, source);
-        }
+        } 
         if (tab_found) {
           fprintf(
               stderr,
@@ -244,14 +316,20 @@ Token get_token(FILE *source) {
         fillToken(TOKEN_SEMICOLON);
         return token;
       } else if (c == '"') {
-        int c2 = fgetc(source);
-        int c3 = fgetc(source);
-        if (c2 == '"' && c3 == '"') {
-          column += 2;
-          state = STATE_MULTILINE_STRING;
+        c = fgetc(source);
+        if (c == '"') {
+          c = fgetc(source);
+          if (c == '"') {
+            column += 2;
+            state = STATE_MULTILINE_STRING;
+          } else {
+            ungetc(c, source);
+            column++;
+            buffer.data[0] = '\0';
+            state = STATE_STRING;
+          }
         } else {
-          ungetc(c3, source);
-          ungetc(c2, source);
+          ungetc(c, source);
           state = STATE_STRING_LOAD;
         }
       } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
@@ -310,6 +388,19 @@ Token get_token(FILE *source) {
       } else if (c == '@') {
         fillToken(TOKEN_AT);
         return token;
+      } else if (c == '}') {
+        if (in_interp_expr) {
+          in_interp_expr = 0;
+          enqueue_token(TOKEN_OP_PLUS, NULL);
+          state = STATE_INTERP_LOAD;
+          fillToken(TOKEN_RPAR);
+          return token;
+        }
+        fprintf(stderr,
+                "Lexikalna chyba: Neplatny znak '}' na riadku %d, stlpec %d\n",
+                row, column);
+        free_lexer_globals();
+        exit(1);
       } else if (c == '&') {
         int next_c = fgetc(source);
         if (next_c == '&') {
@@ -403,16 +494,24 @@ Token get_token(FILE *source) {
         free_lexer_globals();
         exit(1);
       } else if (c == '"') {
-        int c2 = fgetc(source);
-        int c3 = fgetc(source);
-        if (c2 == '"' && c3 == '"') {
-          column += 2;
-          buffer.data[buffer.len] = '\0';
-          state = STATE_STRING;
+        c = fgetc(source);
+        if (c == '"') {
+          c = fgetc(source);
+          if (c == '"') {
+            column += 2;
+            buffer.data[buffer.len] = '\0';
+            state = STATE_STRING;
+          } else {
+            ungetc(c, source);
+            column++;
+            bufferCheck();
+            buffer.data[buffer.len++] = '"';
+            bufferCheck();
+            buffer.data[buffer.len++] = '"';
+          }
         } else {
-          ungetc(c3, source);
-          ungetc(c2, source);
-          buffer.data[buffer.len++] = c;
+          ungetc(c, source);
+          buffer.data[buffer.len++] = '"';
         }
       } else {
         buffer.data[buffer.len++] = c;
@@ -437,6 +536,30 @@ Token get_token(FILE *source) {
         buffer.data[buffer.len] = c;
         buffer.len++;
       } else {
+        if (buffer.len == 1 && buffer.data[0] == 's' && c == '"') {
+          c = fgetc(source);
+          if (c == '"') {
+            c = fgetc(source);
+            if (c == '"') {
+              column += 2;
+              interp_multiline = 1;
+            } else {
+              ungetc(c, source);
+              column++;
+              buffer.len = 0;
+              buffer.data[0] = '\0';
+              fillToken(TOKEN_STRING_LITERAL);
+              return token;
+            }
+          } else {
+            ungetc(c, source);
+            interp_multiline = 0;
+          }
+          buffer.len = 0;
+          state = STATE_INTERP_LOAD;
+          fillToken(TOKEN_LPAR);
+          return token;
+        }
         ungetc(c, source);
         column--;
         buffer.data[buffer.len] = '\0';
@@ -856,6 +979,137 @@ Token get_token(FILE *source) {
         buffer.data[buffer.len] = '0';
         buffer.len++;
         state = STATE_INT;
+      }
+      break;
+    
+    case (STATE_INTERP_LOAD):
+      c = fgetc(source);
+      bufferCheck();
+      if (interp_multiline && c == '\n') {
+        row++;
+        column = 1;
+      } else {
+        column++;
+      }
+
+      if (c == '$') {
+        int next_c = fgetc(source);
+        column++;
+        if (next_c == '$') {
+          buffer.data[buffer.len++] = '$';
+        } else if (next_c == '{') {
+          buffer.data[buffer.len] = '\0';
+          fillToken(TOKEN_STRING_LITERAL);
+          enqueue_token(TOKEN_OP_PLUS, NULL);
+          enqueue_token(TOKEN_IDENTIFIER, "toStr");
+          enqueue_token(TOKEN_LPAR, NULL);
+          in_interp_expr = 1;
+          state = STATE_READ;
+          return token;
+        } else if ((next_c >= 'a' && next_c <= 'z') ||
+                   (next_c >= 'A' && next_c <= 'Z') || next_c == '_') {
+          char id_buf[256];
+          int id_len = 0;
+          id_buf[id_len++] = (char)next_c;
+          while (1) {
+            int ic = fgetc(source);
+            if ((ic >= '0' && ic <= '9') || (ic >= 'a' && ic <= 'z') ||
+                (ic >= 'A' && ic <= 'Z') || ic == '_') {
+              column++;
+              if (id_len < 255) {
+                id_buf[id_len++] = (char)ic;
+              }
+            } else {
+              ungetc(ic, source);
+              break;
+            }
+          }
+          id_buf[id_len] = '\0';
+          if (id_len == 1 && id_buf[0] == '_') {
+            fprintf(stderr,
+                    "Lexikalna chyba: Neplatny identifikator v interpolacii na "
+                    "riadku %d, stlpec %d\n",
+                    row, column);
+            free_lexer_globals();
+            exit(1);
+          }
+          buffer.data[buffer.len] = '\0';
+          fillToken(TOKEN_STRING_LITERAL);
+          enqueue_token(TOKEN_OP_PLUS, NULL);
+          enqueue_token(TOKEN_IDENTIFIER, "toStr");
+          enqueue_token(TOKEN_LPAR, NULL);
+          enqueue_token(TOKEN_IDENTIFIER, id_buf);
+          enqueue_token(TOKEN_RPAR, NULL);
+          enqueue_token(TOKEN_OP_PLUS, NULL);
+          return token;
+        } else {
+          fprintf(stderr,
+                  "Lexikalna chyba: Neplatna interpolacia na riadku %d, stlpec "
+                  "%d\n",
+                  row, column);
+          free_lexer_globals();
+          exit(1);
+        }
+      } else if (!interp_multiline && c == '\\') {
+        int esc = fgetc(source);
+        column++;
+        if (esc == 'n')
+          buffer.data[buffer.len++] = '\n';
+        else if (esc == 't')
+          buffer.data[buffer.len++] = '\t';
+        else if (esc == 'r')
+          buffer.data[buffer.len++] = '\r';
+        else if (esc == '"')
+          buffer.data[buffer.len++] = '"';
+        else if (esc == '\\')
+          buffer.data[buffer.len++] = '\\';
+        else {
+          fprintf(stderr,
+                  "Lexikalna chyba: Zly escape na riadku %d, stlpec %d\n", row,
+                  column);
+          free_lexer_globals();
+          exit(1);
+        }
+      } else if (c == '"') {
+        if (!interp_multiline) {
+          buffer.data[buffer.len] = '\0';
+          fillToken(TOKEN_STRING_LITERAL);
+          enqueue_token(TOKEN_RPAR, NULL);
+          state = STATE_READ;
+          return token;
+        } else {
+          c = fgetc(source);
+          if (c == '"') {
+            c = fgetc(source);
+            if (c == '"') {
+              column += 2;
+              buffer.data[buffer.len] = '\0';
+              fillToken(TOKEN_STRING_LITERAL);
+              enqueue_token(TOKEN_RPAR, NULL);
+              state = STATE_READ;
+              return token;
+            } else {
+              ungetc(c, source);
+              column++;
+              bufferCheck();
+              buffer.data[buffer.len++] = '"';
+              bufferCheck();
+              buffer.data[buffer.len++] = '"';
+            }
+          } else {
+            ungetc(c, source);
+            buffer.data[buffer.len++] = '"';
+          }
+        }
+      } else if ((!interp_multiline && c == '\n') || c == EOF) {
+        fprintf(stderr,
+                "Lexikalna chyba: Neukonceny interpolovany retazec na riadku "
+                "%d, stlpec %d\n",
+                row, column);
+        free_lexer_globals();
+        exit(1);
+      } else {
+        buffer.data[buffer.len++] = c;
       }
       break;
 
