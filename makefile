@@ -1,7 +1,13 @@
-# xbadint00
+# implementation of a compiler for the language IFJ26
+# makefile
+#
+# xbadint00 Tomáš Badinský
+
+# COMPILER AND FLAGS
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -I$(SRC_DIR)
 
+# DIRECTORIES AND FILES
 SRC_DIR = src
 OBJ_DIR = obj
 TARGET = main
@@ -37,7 +43,6 @@ check:
 	clang-tidy -checks=-clang-analyzer-security.insecureAPI.* $(SRCS) -- $(CFLAGS)
 
 
-
 # BUILD AND CHECK OF OBJECT/BIN FILES
 
 .PHONY: build-check
@@ -64,6 +69,7 @@ clean:
 	rm -f $(ARCHIVE)
 	rm -rf is_it_ok_test
 
+# ZIP OF src/ , dokumentace.pdf, rozdeleni, rozsireni and makefile
 .PHONY: zip
 zip: clean
 	@echo "Creating zip file ..."
