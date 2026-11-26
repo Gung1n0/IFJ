@@ -106,16 +106,7 @@
     \paragraph{BOOLTHEN, FUNEXP a INTERPOLATEDS}
         Tieto rozšírenia si v sémantickej časti projektu nevyžadujú takmer žiadne špeciálne úpravy.
 
-    \subsubsection{Súbory}
-    \begin{itemize}
-        \item \textbf{hashtable.c/h} -- implementácia hashovacej tabuľky, obsahuje všetky potrebné funkcie pre ADT hashovacej tabuľky.
-        \item \textbf{symtable.c/h} -- obsahuje implementáciu tabuľky symbolov, ktorá stavia nad funkciami z \texttt{hashtable.h}.
-        \item \textbf{semantics.c/h} -- logika sémantickej analýzy; na vstupe prijíma \texttt{AST} z parsera a následne ho anotuje.
-        \item \textbf{typerules.c/h} -- pravidlá pre dátové typy, vyhodnocovanie výsledných typov podľa operácie a pod.
-        \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
-        \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
-        \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
-    \end{itemize}
+
     \subsection{Generovanie kódu}
         \subsubsection{Vstup a výstup generátora}
         Vstupom generátora kódu je uzol \emph{AST}, ktorý anotovala sémantická analýza a to odkazi na záznamy z tabuľky symbolov a konverznými príznakmi. \texttt{IFJcode26} vzniká priamo pri prechádzaní tohto \emph{AST} a je zapisovaný na štandardný výstup, to všetko až po úspešnom ukončení všetkých analýz, a preto generátor hlási len internú chybu 99.
@@ -125,6 +116,25 @@
         Argumenty a návratové hodnoty sú posunuté cez dátový zásobník, kde sú argumenty aj ukladané volajúcou funkciou cez \texttt{PUSHS}. Po vykonaní \texttt{CALL} je uložená návratová pozícia a skočí na náveštie tej danej funkcie. Každé volanie používateľských funkcií vytvorí \texttt{(CREATEFRAME)} vlastný dočasný rámec, ktorý cez \texttt{(PUSHFRAME)} presunie do zásobníka s rámcami ako nový lokálny rámec a zadefinujú sa všetky lokálne premenné danej funkcie. Vstavané funkcie pracujú s globálnymi pomocnými premennými, čím nevytvárajú nové lokálne rámce. Návratová hodnota funkcie zodpovedá hodnote posledného príkazu alebo hodnote \texttt{return}, ktorý ju uloží na dátový zasobník a skočí na konečné náveštie funkcie.
         \subsubsection{Náveštia}
         V generátore sú použité náveštia na adresovanie funkcií a vetvení. Používateľské aj vstavané funkcie začínajú prefixom \texttt{fn\$}, zvyšné začínajú znakom \$ a ich názvom. Všetky štruktúry využívajú počítadlo, ktoré určuje ich poradové číslo v programe.
+        \subsubsection{Rozšírenia}
+        \paragraph{VALMEM}
+            Vyhodnocuje výraz na zásobníku a volá príslušnú funkciu z knižnice: \texttt{.toString} $\Rightarrow$ \texttt{fn\$toStr}
+        \paragraph{CONTROL}
+            Pridáva \texttt{if} ako výraz, každá vetva má svoju hodnotu na zásobníku, cyklus \texttt{for} je rozdelený na začiatok a koniec ktoré sú uložené v premenných. Smer iterovania sa určuje znamienkom kroku. Nepravdivá podmienka preskakuje telo aktuálnej interácie a spúšťa ďalšiu interáciu.
+        \paragraph{BOOLTHEN}
+            Skracuje vyhodnotenie operátorov \texttt{\&\&} a \texttt{||}, vyhodnoti ľavý operand s \texttt{false} pre \texttt{\&\&} alebo true pre \texttt{||}, pri zhode preskočí na zodpovedajúce náveštie \texttt{\$and\$short}, \texttt{\$or\$short}, \texttt{\$end\$end}.
+        \paragraph{EXTKW, PARAMLISTS, INTERPOLATEDS, FUNEXP} Rozšírenia bez zvláštnej obsluhy na strane generátora kódu.
+\section{Súbory prekladača}
+    \begin{itemize}
+        \item \textbf{hashtable.c/h} -- implementácia hashovacej tabuľky, obsahuje všetky potrebné funkcie pre ADT hashovacej tabuľky.
+        \item \textbf{symtable.c/h} -- obsahuje implementáciu tabuľky symbolov, ktorá stavia nad funkciami z \texttt{hashtable.h}.
+        \item \textbf{semantics.c/h} -- logika sémantickej analýzy; na vstupe prijíma \texttt{AST} z parsera a následne ho anotuje.
+        \item \textbf{typerules.c/h} -- pravidlá pre dátové typy, vyhodnocovanie výsledných typov podľa operácie a pod.
+        \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
+        \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
+        \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
+        % write here
+    \end{itemize}        
 \section{Špeciálne algoritmy a dátové štruktúry}
     \subsection{Hashovacia tabuľka}
         Hashovacia tabuľka, implementovaná v súbore \texttt{hashtable.c}, tvorí základ sémantickej analýzy. Využívame ju na ukladanie premenných a funkcií, no vďaka použitiu \texttt{void} ukazovateľa dokáže uchovávať ľubovoľné dáta. Na výpočet indexov tabuľka používa DJB algoritmus. Ak sa na vypočítanom indexe už nachádza hodnota, index sa inkrementuje o 1 dovtedy, kým sa nenájde voľné miesto. Pred každým vložením sa kontroluje naplnenosť tabuľky. Tabuľka má celkovú kapacitu 307 miest a za \uv{plnú} sa považuje vtedy, keď obsadenosť presiahne 70\,\% jej maximálnej kapacity. Číslo 307 sme zvolili preto, že ide o dostatočne veľké prvočíslo, čo minimalizuje zhlukovanie a zabezpečuje rovnomernejšiu distribúciu. Veľkosť tabuľky sa dynamicky nemení, takže ak počet prvkov presiahne 214, ďalšie vloženie sa zamietne.
