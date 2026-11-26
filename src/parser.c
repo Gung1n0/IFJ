@@ -1523,7 +1523,7 @@ node *parse_def(token_array *arr, Token *curr) {
 node *parse_main(token_array *arr, Token *curr) {
   get_token_from_array(arr, TOKEN_AT, NULL);
   get_token_from_array(arr, TOKEN_IDENTIFIER, "main");
-  curr = next_token(arr);
+  curr = peek_token_array(arr, 0);
   if (curr->type == TOKEN_EOL) {
     curr = next_token(arr);
   }
