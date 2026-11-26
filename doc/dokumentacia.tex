@@ -3,7 +3,7 @@
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
-\usepackage{enumitem}
+\usepackage{enumitem}   
 
 \graphicspath{{./inc/}}
 
@@ -55,8 +55,9 @@
     \subsection{Lexikálna analýza}
         % write here
     \subsection{Syntaktická analýza}
-        \begin{table}[ht]
-  
+  Syntaktická analýza z  výnimkou AST je v realizovaná v súbore Parser.c . 
+  A to konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou $peek\_token_array$ a správou odsadenia (IND, DED, EOL).
+  Výrazy $<expression>$ sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky.
     \subsection{Sémantická analýza}
         % write here
     \subsection{Generovanie kódu}
@@ -68,6 +69,7 @@
 \section{Literatúra}
     % idk ci je treba, popripade mozme zrusit
 \section{Prílohy}
+\newpage
 \section{LL -- gramatika}
 \label{sec:ll-grammar}
 \begin{enumerate}[label=\arabic*., leftmargin=2.2em, itemsep=1pt, parsep=0pt]
@@ -114,6 +116,9 @@
   \item \texttt{<asign> -> id = <expression>}
 \end{enumerate}
 
+\newpage
+
+        \begin{table}[ht]
     \centering
   \caption{Precedenčná tabuľka}
   \label{Tabulka 1}
@@ -140,5 +145,67 @@
     $||$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
     \bottomrule
   \end{tabular}
+\end{table}
+
+\newpage
+
+\begin{table}[ht]
+\centering
+\rotatebox{-90}{%
+  \begin{minipage}{0.88\textheight}
+  \centering
+  \caption{\large LL tabuľka pre zoznam pravidiel 1--41}
+  \label{tab:ll-table}
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l *{24}{c}}
+    \toprule
+    \textbf{\large Neterminál} & \textbf{\large\texttt{import}} & \textbf{\large\texttt{EOL}} & \textbf{\large\texttt{EOF}} & \textbf{\large\texttt{@}/\texttt{main}} & \textbf{\large\texttt{extention}} & \textbf{\large\texttt{(}} & \textbf{\large\texttt{)}} & \textbf{\large\texttt{id}} & \textbf{\large\texttt{,}} & \textbf{\large\texttt{:}} & \textbf{\large\texttt{=}} & \textbf{\large\texttt{val}/\texttt{var}} & \textbf{\large\texttt{return}} & \textbf{\large\texttt{while}} & \textbf{\large\texttt{if}} & \textbf{\large\texttt{then}} & \textbf{\large\texttt{else}} & \textbf{\large\texttt{for}} & \textbf{\large\texttt{do}} & \textbf{\large\texttt{by}} & \textbf{\large\texttt{;}} & \textbf{\large\texttt{IND}} & \textbf{\large\texttt{DED}} & \textbf{\large\texttt{<expr>}} \\
+    \midrule
+    \textbf{\large\texttt{<program>}} & {\large 1} & {\large 1} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<prolog>}} & {\large 2} & {\large 2} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<line end>}} & & {\large 3} & {\large 3} & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt eol>}} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & {\large 4} & & & & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & & {\large 4} & & & & {\large 4} & & {\large 4} \\
+    \textbf{\large\texttt{<top list>}} & & {\large 5} & {\large 5} & {\large 5} & {\large 5} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<top item>}} & & {\large 6} & & {\large 6} & {\large 6} & {\large 6} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<def>}} & & & & & & {\large 7} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt params>}} & & & & & & & & {\large 8} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt comma>}} & & & & & & & {\large 9} & & {\large 9} & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<type>}} & & & & & & & {\large 10} & & & & {\large 10} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<main>}} & & & & {\large 11} & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<extention>}} & & & & & {\large 12} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<block>}} & & {\large 13} & & & & {\large 13} & & {\large 13} & & & & {\large 13} & {\large 13} & {\large 13} & {\large 13} & & & {\large 13} & & & & {\large 13} & & {\large 13} \\
+    \textbf{\large\texttt{<compound>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 14} & & & \\
+    \textbf{\large\texttt{<opt semicolon>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 15} & & & \\
+    \textbf{\large\texttt{<opt ind>}} & & & & & & {\large 16} & & {\large 16} & & & & {\large 16} & {\large 16} & {\large 16} & {\large 16} & & & {\large 16} & & & & {\large 16} & & {\large 16} \\
+    \textbf{\large\texttt{<statement>}} & & & & & & & & {\large 17} & & & & {\large 17} & {\large 17} & {\large 17} & {\large 17} & & & {\large 17} & & & & & & {\large 17} \\
+    \textbf{\large\texttt{<opt if for while>}} & & {\large 18} & & & & & & & & & & & & {\large 18} & {\large 18} & & & {\large 18} & & & {\large 18} & & & \\
+    \textbf{\large\texttt{<opt valvar>}} & & & & & & & & {\large 19} & & & & {\large 19} & {\large 19} & {\large 19} & {\large 19} & & & {\large 19} & & & & & & {\large 19} \\
+    \textbf{\large\texttt{<opt return>}} & & & & & & & & {\large 20} & & & & & {\large 20} & {\large 20} & {\large 20} & & & {\large 20} & & & & & & {\large 20} \\
+    \textbf{\large\texttt{<opt while>}} & & & & & & & & {\large 21} & & & & & & {\large 21} & {\large 21} & & & {\large 21} & & & & & & {\large 21} \\
+    \textbf{\large\texttt{<opt if>}} & & & & & & & & {\large 22, 34} & & & & & & {\large 22, 34} & {\large 22, 34} & & & {\large 22, 34} & & & & & & {\large 22, 34} \\
+    \textbf{\large\texttt{<opt for>}} & & & & & & & & {\large 23} & & & & & & {\large 23} & {\large 23} & & & {\large 23} & & & & & & {\large 23} \\
+    \textbf{\large\texttt{<opt asign>}} & & & & & & & & {\large 24} & & & & & & {\large 24} & {\large 24} & & & {\large 24} & & & & & & {\large 24} \\
+    \textbf{\large\texttt{<val var>}} & & & & & & & & & & & & {\large 25} & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt colon type>}} & & & & & & & & & & {\large 26} & {\large 26} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<colon type>}} & & & & & & & & & & {\large 27} & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<return>}} & & & & & & & & & & & & & {\large 28} & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt expression>}} & & {\large 29} & & & & & & & & & & & & & & & & & & & & & & {\large 29} \\
+    \textbf{\large\texttt{<while>}} & & & & & & & & & & & & & & {\large 30} & & & & & & & & & & \\
+    \textbf{\large\texttt{<if>}} & & & & & & & & & & & & & & & {\large 31} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt else>}} & & & & & & & & & & & & & & & & & {\large 32} & & & & & & & \\
+    \textbf{\large\texttt{<else>}} & & {\large 33} & & & & {\large 33} & & {\large 33} & & & & {\large 33} & {\large 33} & {\large 33} & {\large 33} & & & {\large 33} & & & & {\large 33} & & {\large 33} \\
+    \textbf{\large\texttt{<for>}} & & & & & & & & & & & & & & & & & & {\large 35} & & & & & & \\
+    \textbf{\large\texttt{<opt eol gen>}} & & {\large 36} & & & & & & {\large 36} & & & & & & & & & & & {\large 36} & & & & & \\
+    \textbf{\large\texttt{<for gen>}} & & & & & & & & {\large 37} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt by>}} & & & & & & & & & & & & & & & & & & {\large 38} & {\large 38} & & & & & \\
+    \textbf{\large\texttt{<for guard>}} & & & & & & & & & & & & & & & {\large 39} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt for guard>}} & & & & & & & & & & & & & & & {\large 40} & & & & {\large 40} & & & & & \\
+    \textbf{\large\texttt{<asign>}} & & & & & & & & {\large 41} & & & & & & & & & & & & & & & & \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \end{minipage}%
+}
 \end{table}
 \end{document}
