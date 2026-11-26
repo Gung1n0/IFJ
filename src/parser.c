@@ -473,6 +473,17 @@ void stack_add(stack_item *si, stack *s) {
   s->size++;
 }
 
+/// @brief checks if a token can begin an operand in an expression
+/// @param t, token to analyze
+/// @return boolean value if is operand the start
+bool is_operand_start(Token *t) {
+  return t->type == TOKEN_IDENTIFIER || t->type == TOKEN_INT_LITERAL ||
+         t->type == TOKEN_DOUBLE_LITERAL || t->type == TOKEN_STRING_LITERAL ||
+         t->type == TOKEN_TRUE || t->type == TOKEN_FALSE ||
+         t->type == TOKEN_INTERP_START || t->type == TOKEN_KW_IF ||
+         t->type == TOKEN_LPAR;
+}
+
 /// @brief maps token to a precedence-table column index
 /// @param arr, array of tokens
 /// @param depth, nesting depth
@@ -492,6 +503,10 @@ int token_to_index(token_array *arr, int depth, int prev_index) {
       curr->type == TOKEN_KW_IF ||
       (curr->type == TOKEN_LPAR && next != NULL && next->type == TOKEN_RPAR))
     return 8;
+
+  if ((prev_index == 8 || prev_index == 6) && arr->pos > 0 &&
+      arr->token_data[arr->pos - 1].type == TOKEN_DED && is_operand_start(curr))
+    return 7;
 
   if (curr->type == TOKEN_OP_MINUS && (prev_index == 8 || prev_index == 6))
     return 1;
@@ -1268,16 +1283,19 @@ node *parse_block(token_array *arr, bool indent) {
     bool more = false;
     bool compound =
         nn->type == node_while || nn->type == node_if || nn->type == node_for;
+
+    bool after_ded =
+        arr->pos > 0 && arr->token_data[arr->pos - 1].type == TOKEN_DED;
+
     if (!compound) {
       if (curr->type == TOKEN_SEMICOLON) {
         more = true;
         skip_token(arr);
       } else if (curr->type == TOKEN_EOL) {
         skip_token(arr);
-
       } else if (curr->type != TOKEN_DED && curr->type != TOKEN_EOF &&
                  curr->type != TOKEN_KW_ELSE && curr->type != TOKEN_RPAR &&
-                 curr->type != TOKEN_COMMA) {
+                 curr->type != TOKEN_COMMA && !after_ded) {
         print_error("Syntax error, expected new line", ERR_SYNTAX, curr->row,
                     curr->column);
       }
