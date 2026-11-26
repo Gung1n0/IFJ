@@ -70,7 +70,7 @@
     Prácu na projekte sme si rozdelili rovnomerne, teda každý 25\,\% kvôli celkovej náročnosti projektu.
     \begin{itemize}
         \item \textbf{Tomáš Badinský 25\,\%} -- vedenie tímu, generátor kódu, testy, makefile, dokumentácia
-        \item \textbf{Filip Šturák 25\,\%} % write here
+        \item \textbf{Filip Šturák 25\,\%} -- AST, syntaktická analýza, precedenčná analýza, LL gramatika, dokumentácia
         \item \textbf{Adrián Murín 25\,\%} % write here
         \item \textbf{Tomáš Zomborský 25\,\%} -- hashovacia tabuľka, symbolová tabuľka, sémantická analýza, dokumentácia
     \end{itemize}
@@ -147,7 +147,7 @@
         
     \subsection{AST}
         Štruktúra \texttt{struct node} predstavuje jeden uzol abstraktného syntaktického stromu, ktorý ukladá rôzne konštrukcie programu, ako napríklad funkciu, blok, príkaz alebo výraz. Každý uzol má spoločnú hlavičku so základnými údajmi: typ uzla (\texttt{type}), riadok a stĺpec uzla. Špecifické polia pre jednotlivé konštrukcie sú uložené v \texttt{union} s názvom \texttt{as}, vďaka čomu zaberajú pevné miesto v pamäti, konkrétne počet bajtov najväčšej podštruktúry v \texttt{union}.
-        
+
 \section{Využitie prostriedkov AI}
     AI agentov sme pri práci na projekte využili, a to hlavne ako prostriedok na vysvetlenie princípov častí projektu alebo objasnenie nejasností, ku ktorým sme sa počas práce na projekte dostali. Zároveň sme AI využili na tvorbu priebežných testov projektu, jednotlivých častí, ale neskôr aj ako celku a rozšírení. Pri použití AI pri generovaní kódu sme boli transparentní a vygenerované časti sme označili, aj keď sa jednalo len o repetitívne časti kódu.
 \section{Záver}
