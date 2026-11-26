@@ -73,7 +73,9 @@
     \subsection{Syntaktická analýza}
   Syntaktická analýza z  výnimkou AST je v realizovaná v súbore Parser.c . 
   A to konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou $peek\_token_array$ a správou odsadenia (IND, DED, EOL).
-  Výrazy $<expression>$ sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky.
+  Výrazy $<expression>$ sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky. 
+  Precedenčná tabuľa bola umiestnené do súboru constants.h z kadial ju parser.c volá na analýzu. Ďalej bola AST štrutúra pridaná do súboru AST.h ktorý definuje podštruktúry dátovej štruktúry "as".
+   S tým, že "as" je realizovaný pomocou unionu daných predom definovach podštruktúr. Na parsovanie bolo taktiež treba aj dátovú štruktúru tokenov a pole tokenov ,ktoré sú samostatne umiestnené v súbore token.h . 
     \subsection{Sémantická analýza}
     \subsubsection{Prehľad}
         Sémantická analýza je ďalším krokom prekladača, ktorý nasleduje po syntaktickej analýze. Ako vstup prijíma \emph{AST} z parseru, ktorý sa prechádza a následne anotuje. Anotácia pozostáva z nastavovania flagov a dátových typov v AST, vkladania ukazovateľov do tabuľky symbolov a pridávania premenných do dynamického poľa \texttt{locals}. Analýza je rozdelená do dvoch fáz. V prvej fáze sa strom prechádza a deklarujú sa všetky funkcie, čo zaručuje, že sa dajú volať aj v prípade, že sú definované neskôr v kóde. V druhej fáze sa už analyzujú telá jednotlivých funkcií.
@@ -199,14 +201,15 @@
   \end{tabular}
 \end{table}
 
-\newpage
+\clearpage
+\subsection{LL tabuľka}
+\label{sec:precedencna-tabulka}
 
 \begin{table}[ht]
 \centering
 \rotatebox{-90}{%
   \begin{minipage}{0.88\textheight}
   \centering
-  \caption{\large LL tabuľka pre zoznam pravidiel 1--41}
   \label{tab:ll-table}
   \setlength{\tabcolsep}{4pt}
   \resizebox{\textwidth}{!}{%
