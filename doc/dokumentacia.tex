@@ -11,6 +11,7 @@
 \usepackage{adjustbox}
 \usepackage{etoolbox}
 \usepackage{float}
+\usepackage{rotating}
 
 % give "Literatura" a number
 \makeatletter
@@ -70,8 +71,7 @@
         % write here
 
     \subsection{Syntaktická analýza}
-        % write here
-
+         Syntaktická analýza, s výnimkou AST a precedenčnej tabuľky, je realizovaná v súbore \texttt{Parser.c} --- konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou \texttt{peek\_token\_array} a správou odsadenia (\texttt{IND}, \texttt{DED}, \texttt{EOL}). Výrazy \texttt{\textless expression\textgreater} sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky. Precedenčná tabuľka bola umiestnená do súboru \texttt{constants.h}, odkiaľ ju \texttt{Parser.c} volá na analýzu. Ďalej bola štruktúra AST pridaná do súboru \texttt{ast.h}, ktorý definuje podštruktúry dátovej štruktúry \texttt{as}, pričom \texttt{as} je realizovaný pomocou \texttt{union} vopred definovaných podštruktúr. Na parsovanie boli taktiež potrebné dátová štruktúra tokenov a pole tokenov, ktoré sú samostatne umiestnené v súbore \texttt{token.h}. Pre \texttt{token.h} a \texttt{ast.h} boli potrebné rôzne enumy, ktoré sa umiestnili do súboru \texttt{enums.h} spolu s enumami, ktoré potrebovali lexikálna analýza, sémantická analýza a generovanie kódu.
     \subsection{Sémantická analýza}
     \subsubsection{Prehľad}
         Sémantická analýza je ďalším krokom prekladača, ktorý nasleduje po syntaktickej analýze. Ako vstup prijíma \emph{AST} z parseru, ktorý sa prechádza a následne anotuje. Anotácia pozostáva z nastavovania flagov a dátových typov v AST, vkladania ukazovateľov do tabuľky symbolov a pridávania premenných do dynamického poľa \texttt{locals}. Analýza je rozdelená do dvoch fáz. V prvej fáze sa strom prechádza a deklarujú sa všetky funkcie, čo zaručuje, že sa dajú volať aj v prípade, že sú definované neskôr v kóde. V druhej fáze sa už analyzujú telá jednotlivých funkcií.
@@ -98,6 +98,15 @@
     \paragraph{BOOLTHEN, FUNEXP a INTERPOLATEDS}
         Tieto rozšírenia si v sémantickej časti projektu nevyžadujú takmer žiadne špeciálne úpravy.
 
+    \subsubsection{Súbory}
+    \begin{itemize}
+        \item \textbf{hashtable.c/h} -- implementácia hashovacej tabuľky, obsahuje všetky potrebné funkcie pre ADT hashovacej tabuľky.
+        \item \textbf{symtable.c/h} -- obsahuje implementáciu tabuľky symbolov, ktorá stavia nad funkciami z \texttt{hashtable.h}.
+        \item \textbf{semantics.c/h} -- logika sémantickej analýzy; na vstupe prijíma \texttt{AST} z parsera a následne ho anotuje.
+        \item \textbf{typerules.c/h} -- pravidlá pre dátové typy, vyhodnocovanie výsledných typov podľa operácie a pod.
+        \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
+    \end{itemize}
+        
     \subsection{Generovanie kódu}
         % write here
 
@@ -171,32 +180,92 @@
 \begin{table}[H]
   \centering
   \caption{Precedenčná tabuľka}
-  \label{tab:precedencna-tabulka}
-  \begin{adjustbox}{max width=\textwidth}
-    \setlength{\tabcolsep}{3.5pt}
-    \begin{tabular}{l *{17}{c}}
-      \toprule
-      $\backslash$ & $+$ & $-$ & $*$ & $/$ & $!$ & $($ & $)$ & $\$$ & $i$ & $<$ & $\leq$ & $>$ & $\ge$ & $==$ & $!=$ & $\&\&$ & $||$ \\
-      \midrule
-      $+$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $-$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $*$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $/$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $!$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $($ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $==$ & $\mathrm{err}$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
-      $)$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $\$$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
-      $i$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
-      $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
-      $\leq$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
-      $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
-      $\ge$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
-      $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
-      $!=$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
-      $\&\&$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ \\
-      $||$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
-      \bottomrule
-    \end{tabular}
-  \end{adjustbox}
+  \label{Tabulka 1}
+  \begin{tabular}{l *{17}{c}}
+    \toprule
+    $\backslash$ & $+$ & $-$ & $*$ & $/$ & $!$ & $($ & $)$ & $\$$ & $i$ & $<$ & $\leq$ & $>$ & $\ge$ & $==$ & $!=$ & $\&\&$ & $||$ \\
+    \midrule
+    $+$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $-$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $*$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $/$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $!$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $($ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $==$ & $\mathrm{err}$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $)$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $\$$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $i$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\leq$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\ge$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $!=$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $\&\&$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ \\
+    $||$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\clearpage
+\subsection{LL tabuľka}
+\label{sec:precedencna-tabulka}
+
+\begin{table}[ht]
+\centering
+\rotatebox{-90}{%
+  \begin{minipage}{0.88\textheight}
+  \centering
+  \label{tab:ll-table}
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l *{24}{c}}
+    \toprule
+    \textbf{\large Neterminál} & \textbf{\large\texttt{import}} & \textbf{\large\texttt{EOL}} & \textbf{\large\texttt{EOF}} & \textbf{\large\texttt{@}/\texttt{main}} & \textbf{\large\texttt{extention}} & \textbf{\large\texttt{(}} & \textbf{\large\texttt{)}} & \textbf{\large\texttt{id}} & \textbf{\large\texttt{,}} & \textbf{\large\texttt{:}} & \textbf{\large\texttt{=}} & \textbf{\large\texttt{val}/\texttt{var}} & \textbf{\large\texttt{return}} & \textbf{\large\texttt{while}} & \textbf{\large\texttt{if}} & \textbf{\large\texttt{then}} & \textbf{\large\texttt{else}} & \textbf{\large\texttt{for}} & \textbf{\large\texttt{do}} & \textbf{\large\texttt{by}} & \textbf{\large\texttt{;}} & \textbf{\large\texttt{IND}} & \textbf{\large\texttt{DED}} & \textbf{\large\texttt{<expr>}} \\
+    \midrule
+    \textbf{\large\texttt{<program>}} & {\large 1} & {\large 1} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<prolog>}} & {\large 2} & {\large 2} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<line end>}} & & {\large 3} & {\large 3} & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt eol>}} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & {\large 4} & & & & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & & {\large 4} & & & & {\large 4} & & {\large 4} \\
+    \textbf{\large\texttt{<top list>}} & & {\large 5} & {\large 5} & {\large 5} & {\large 5} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<top item>}} & & {\large 6} & & {\large 6} & {\large 6} & {\large 6} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<def>}} & & & & & & {\large 7} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt params>}} & & & & & & & & {\large 8} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt comma>}} & & & & & & & {\large 9} & & {\large 9} & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<type>}} & & & & & & & {\large 10} & & & & {\large 10} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<main>}} & & & & {\large 11} & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<extention>}} & & & & & {\large 12} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<block>}} & & {\large 13} & & & & {\large 13} & & {\large 13} & & & & {\large 13} & {\large 13} & {\large 13} & {\large 13} & & & {\large 13} & & & & {\large 13} & & {\large 13} \\
+    \textbf{\large\texttt{<compound>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 14} & & & \\
+    \textbf{\large\texttt{<opt semicolon>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 15} & & & \\
+    \textbf{\large\texttt{<opt ind>}} & & & & & & {\large 16} & & {\large 16} & & & & {\large 16} & {\large 16} & {\large 16} & {\large 16} & & & {\large 16} & & & & {\large 16} & & {\large 16} \\
+    \textbf{\large\texttt{<statement>}} & & & & & & & & {\large 17} & & & & {\large 17} & {\large 17} & {\large 17} & {\large 17} & & & {\large 17} & & & & & & {\large 17} \\
+    \textbf{\large\texttt{<opt if for while>}} & & {\large 18} & & & & & & & & & & & & {\large 18} & {\large 18} & & & {\large 18} & & & {\large 18} & & & \\
+    \textbf{\large\texttt{<opt valvar>}} & & & & & & & & {\large 19} & & & & {\large 19} & {\large 19} & {\large 19} & {\large 19} & & & {\large 19} & & & & & & {\large 19} \\
+    \textbf{\large\texttt{<opt return>}} & & & & & & & & {\large 20} & & & & & {\large 20} & {\large 20} & {\large 20} & & & {\large 20} & & & & & & {\large 20} \\
+    \textbf{\large\texttt{<opt while>}} & & & & & & & & {\large 21} & & & & & & {\large 21} & {\large 21} & & & {\large 21} & & & & & & {\large 21} \\
+    \textbf{\large\texttt{<opt if>}} & & & & & & & & {\large 22, 34} & & & & & & {\large 22, 34} & {\large 22, 34} & & & {\large 22, 34} & & & & & & {\large 22, 34} \\
+    \textbf{\large\texttt{<opt for>}} & & & & & & & & {\large 23} & & & & & & {\large 23} & {\large 23} & & & {\large 23} & & & & & & {\large 23} \\
+    \textbf{\large\texttt{<opt asign>}} & & & & & & & & {\large 24} & & & & & & {\large 24} & {\large 24} & & & {\large 24} & & & & & & {\large 24} \\
+    \textbf{\large\texttt{<val var>}} & & & & & & & & & & & & {\large 25} & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt colon type>}} & & & & & & & & & & {\large 26} & {\large 26} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<colon type>}} & & & & & & & & & & {\large 27} & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<return>}} & & & & & & & & & & & & & {\large 28} & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt expression>}} & & {\large 29} & & & & & & & & & & & & & & & & & & & & & & {\large 29} \\
+    \textbf{\large\texttt{<while>}} & & & & & & & & & & & & & & {\large 30} & & & & & & & & & & \\
+    \textbf{\large\texttt{<if>}} & & & & & & & & & & & & & & & {\large 31} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt else>}} & & & & & & & & & & & & & & & & & {\large 32} & & & & & & & \\
+    \textbf{\large\texttt{<else>}} & & {\large 33} & & & & {\large 33} & & {\large 33} & & & & {\large 33} & {\large 33} & {\large 33} & {\large 33} & & & {\large 33} & & & & {\large 33} & & {\large 33} \\
+    \textbf{\large\texttt{<for>}} & & & & & & & & & & & & & & & & & & {\large 35} & & & & & & \\
+    \textbf{\large\texttt{<opt eol gen>}} & & {\large 36} & & & & & & {\large 36} & & & & & & & & & & & {\large 36} & & & & & \\
+    \textbf{\large\texttt{<for gen>}} & & & & & & & & {\large 37} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt by>}} & & & & & & & & & & & & & & & & & & {\large 38} & {\large 38} & & & & & \\
+    \textbf{\large\texttt{<for guard>}} & & & & & & & & & & & & & & & {\large 39} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt for guard>}} & & & & & & & & & & & & & & & {\large 40} & & & & {\large 40} & & & & & \\
+    \textbf{\large\texttt{<asign>}} & & & & & & & & {\large 41} & & & & & & & & & & & & & & & & \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \end{minipage}%
+}
 \end{table}
 \end{document}
