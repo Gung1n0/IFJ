@@ -1,9 +1,21 @@
 \documentclass{article}
-\usepackage{graphicx} % Required for inserting images
+\usepackage{graphicx}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
-\usepackage{enumitem}   
+\usepackage[T1]{fontenc}
+\usepackage[slovak]{babel}
+\usepackage{enumitem}
+\usepackage{pdflscape}
+\usepackage[hidelinks]{hyperref}
+\usepackage{adjustbox}
+\usepackage{etoolbox}
+\usepackage{float}
+
+% give "Literatura" a number
+\makeatletter
+\patchcmd{\thebibliography}{\section*{\refname}}{\section{\refname}}{}{}
+\makeatother
 
 \graphicspath{{./inc/}}
 
@@ -18,20 +30,23 @@
         \vspace{0.5\baselineskip}
         {\Huge\bfseries Implementácia imperatívneho prekladača pre jazyk IFJ26\par}
         \vspace{2.5\baselineskip}
-        {\large Tím \texttt{xbadint00}, variant TRP\par}
+        {\large Tím \texttt{xbadint00}, variant TRP-izp\par}
+        Rozšírenia: BOOLTHEN, CONTROL, EXTKW, FUNEXP, INTERPOLATED, PARAMLISTS a VALMEM\par
+        \vspace{0.5\baselineskip}
+        \url{https://github.com/Gung1n0/IFJ}
     \end{center}
 
     \vfill
 
     \noindent
     \begin{minipage}[c]{0.30\textwidth}
-        \large 19. novembra 2026
+        {\large 19. novembra 2026}
     \end{minipage}%
     \hfill
     \begin{minipage}[c]{0.65\textwidth}
         \raggedleft
         \begin{tabular}{r@{\hspace{1.5em}}c}
-            Tomáš Badínsky -- xbadint00 (vedúci) & 25\,\% \\
+            \textbf{Tomáš Badínsky} -- xbadint00 (vedúci) & 25\,\% \\
             Adrián Murín -- xmurina00 & 25\,\% \\
             Filip Šturák -- xsturaf00 & 25\,\% \\
             Tomáš Zomborský -- xzombot00 & 25\,\%
@@ -40,53 +55,88 @@
 \end{titlepage}
 
 {\large
-\renewcommand*\contentsname{Obsah}
 \tableofcontents
-\pagebreak
-
 }
+\pagebreak
 
 \section{Úvod}
     % write here
+
 \section{Práca v tíme}
     % write here
+
 \section{Návrh a implementácia}
-        % write here
     \subsection{Lexikálna analýza}
         % write here
+
     \subsection{Syntaktická analýza}
   Syntaktická analýza z  výnimkou AST je v realizovaná v súbore Parser.c . 
   A to konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou $peek\_token_array$ a správou odsadenia (IND, DED, EOL).
   Výrazy $<expression>$ sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky.
     \subsection{Sémantická analýza}
-        % write here
+    \subsubsection{Prehľad}
+        Sémantická analýza je ďalším krokom prekladača, ktorý nasleduje po syntaktickej analýze. Ako vstup prijíma \emph{AST} z parseru, ktorý sa prechádza a následne anotuje. Anotácia pozostáva z nastavovania flagov a dátových typov v AST, vkladania ukazovateľov do tabuľky symbolov a pridávania premenných do dynamického poľa \texttt{locals}. Analýza je rozdelená do dvoch fáz. V prvej fáze sa strom prechádza a deklarujú sa všetky funkcie, čo zaručuje, že sa dajú volať aj v prípade, že sú definované neskôr v kóde. V druhej fáze sa už analyzujú telá jednotlivých funkcií.
+
+    \subsubsection{Inferencia}
+        Keďže najprv deklarujeme všetky funkcie vrátane tých, ktorých návratový typ ešte nepoznáme, môže nastať situácia, kedy sa snažíme zavolať funkciu bez znalosti jej návratového typu. Preto sme využili prístup, pri ktorom funkciu analyzujeme vtedy, keď ju potrebujeme. Na sledovanie stavu funkcie slúži enum \texttt{i\_state}. Pre každú funkciu s explicitným návratovým typom nastavíme \texttt{i\_state} na \texttt{done}. Ak takúto funkciu nájdeme pri analýze, môžeme rovno použiť jej návratový typ a nemusíme ju ďalej analyzovať. Ak funkcia nemá explicitný návratový typ a \texttt{i\_state = unvisited}, dočasne odpojíme celý scope chain. To nám zaručí, že môžeme analyzovať neznámu funkciu bez toho, aby videla premenné z iných scopov. Po dokončení analýzy celý scope chain jednoducho pripojíme naspäť a pokračujeme v analýze. Ak je \texttt{i\_state = in\_progress}, znamená to, že sme narazili na rekurziu. Tento prístup však nedokáže zachytiť každý typ rekurzie, preto pre každé volanie funkcie vytvárame orientovanú hranu (z $\Rightarrow$ \text{do}) a na detekciu cyklov používame jednoduchý DFS algoritmus. V oboch prípadoch vraciame chybu 6.
+
+    \subsubsection{Kontrola typov}
+        Kontrola typov prebieha v súbore \texttt{typerules.c}, ktorý má na starosti overovanie samotných pravidiel pri priraďovaní dátových typov. Kontrolnú logiku sme sa rozhodli vyčleniť do osobitného súboru pre lepšiu prehľadnosť. Funkcie \texttt{binary\_operation} a \texttt{unary\_operation} vyhodnocujú výsledný typ pri rôznych logických aj numerických operáciách. Kód taktiež kontroluje, či je možné premenné priradiť a či je nutná konverzia z typu \texttt{Int} na \texttt{Double}. Ak je konverzia nutná, aktuálnemu uzlu sa pridelí príslušný flag, aby generátor kódu vedel, že s premennou má pracovať ako s typom \texttt{Double}.
+
+    \subsubsection{Rozšírenia}
+    \paragraph{PARAMLISTS}
+        Ak nie je nájdený názov premennej, musíme overiť, či neexistuje funkcia s rovnakým názvom. Ak áno, transformujeme uzol na volanie funkcie, ktoré následne analyzujeme. Pri funkciách nám nestačí poznať iba počet parametrov; musíme taktiež ukladať zoznamy parametrov a ich dĺžky, ktoré musia byť pri volaní funkcie identické.
+
+    \paragraph{VALMEM}
+        \texttt{.length} a \texttt{.toInt} sú v podstate fixné tabuľky členov (memberov), kde má každý člen definovaný vstupný a výsledný typ. Tie sa kontrolujú ako prvé, a ak sa v tabuľke nenachádzajú, prechádzame na rozšírenie EXTKW.
+
+    \paragraph{EXTKW}
+        Pri metódach, ako je napríklad \texttt{plus} pre typ \texttt{Int}, nesmie nastať kolízia s bežnou funkciou \texttt{plus}. Preto metódy ukladáme pod upraveným názvom, napríklad \texttt{Int\$plus}. Keďže znak \uv{\texttt{\$}} sa v zdrojovom programe nemôže vyskytovať, kolízia je vylúčená. Pri volaní ako \texttt{x.plus(1)} sa \texttt{x} stáva prvým parametrom metódy. Keď pri analýze narazíme na zápis \texttt{x.plus(1)}, prepíšeme ho na volanie funkcie \texttt{Int\$plus(x)(1)}.
+
+    \paragraph{CONTROL}
+        Konštrukcia \texttt{if} použitá ako výraz musí obsahovať aj vetvu \texttt{else}, pričom obe vetvy musia mať rovnaký dátový typ. Pri cykle \texttt{for} sa najprv vyhodnotia hraničné hodnoty ešte pred vytvorením riadiacej premennej cyklu. Taktiež vytvárame skryté pomocné premenné \texttt{\$for\_step} a \texttt{\$for\_end}.
+
+    \paragraph{BOOLTHEN, FUNEXP a INTERPOLATEDS}
+        Tieto rozšírenia si v sémantickej časti projektu nevyžadujú takmer žiadne špeciálne úpravy.
+
     \subsection{Generovanie kódu}
         % write here
+
 \section{Špeciálne algoritmy a dátové štruktúry}
-    % write here
+    \subsection{Hashovacia tabuľka}
+        Hashovacia tabuľka, implementovaná v súbore \texttt{hashtable.c}, tvorí základ sémantickej analýzy. Využívame ju na ukladanie premenných a funkcií, no vďaka použitiu \texttt{void} ukazovateľa dokáže uchovávať ľubovoľné dáta. Na výpočet indexov tabuľka používa DJB algoritmus. Ak sa na vypočítanom indexe už nachádza hodnota, index sa inkrementuje o 1 dovtedy, kým sa nenájde voľné miesto. Pred každým vložením sa kontroluje naplnenosť tabuľky. Tabuľka má celkovú kapacitu 307 miest a za \uv{plnú} sa považuje vtedy, keď obsadenosť presiahne 70\,\% jej maximálnej kapacity. Číslo 307 sme zvolili preto, že ide o dostatočne veľké prvočíslo, čo minimalizuje zhlukovanie a zabezpečuje rovnomernejšiu distribúciu. Veľkosť tabuľky sa dynamicky nemení, takže ak počet prvkov presiahne 214, ďalšie vloženie sa zamietne.
+
+    \subsection{Symbolová tabuľka}
+        Symbolová tabuľka, implementovaná v súbore \texttt{symtable.c}, je nadstavbou nad hashovacou tabuľkou. Uchováva takzvaný scope chain, ktorý je realizovaný pomocou abstraktného dátového typu zreťazeného zoznamu (linked list). Každý scope obsahuje vlastnú hashovaciu tabuľku s premennými deklarovanými v danom scope a ukazovateľ na nadradený scope (\uv{rodiča}). Pri deklarácii novej premennej sa záznam pridá do hashovacej tabuľky aktuálneho scopu. Pri použití existujúcej premennej sa postupne prehľadávajú všetky hashovacie tabuľky v rámci celého scope chainu, kým sa premenná nenájde. Vyhľadávanie začína v aktuálnom scope a postupuje smerom nahor cez ukazovatele na rodiča. Ak sa premenná nenájde, znamená to, že neexistuje, a prekladač vráti chybu 3. Funkcie sú uložené mimo scope chainu vo vlastnej hashovacej tabuľke. Tabuľka taktiež poskytuje funkcie \texttt{sym\_detach} a \texttt{sym\_restore}, ktoré umožňujú dočasne odpojiť a opätovne pripojiť scope chain; tieto funkcie sa využívajú pri analýze nenavštívených (\texttt{unvisited}) funkcií.
+
 \section{Záver}
     % write here
-\section{Literatúra}
-    % idk ci je treba, popripade mozme zrusit
+
+\begin{thebibliography}{9}
+    \bibitem{ial-slides}
+    Burgetová, Ivana a Hranický, Radek. \emph{7. AVL strom, stromy s více klíči ve vrcholech, vyhledávání v tabulkách s rozptýlenými položkami.} [Vyhledávací tabulky III.]. Predmet IAL, Fakulta informačních technologií VUT v~Brně, 2026.
+\end{thebibliography}
+
 \section{Prílohy}
-\newpage
-\section{LL -- gramatika}
+\clearpage
+\subsection{LL -- gramatika}
 \label{sec:ll-grammar}
+
 \begin{enumerate}[label=\arabic*., leftmargin=2.2em, itemsep=1pt, parsep=0pt]
-  \item \texttt{<program> ->  <prolog> <top\_list> EOF}
-  \item \texttt{<prolog> ->  <opt\_eol> import \ IFJ26.* \ <line\_end>}
-  \item \texttt{<line\_end> -> EOL  |  EOF}
-  \item \texttt{<opt\_eol> -> \ <opt\_eol> | $\epsilon$}
+  \item \texttt{<program> -> <prolog> <top\_list> EOF}
+  \item \texttt{<prolog> -> <opt\_eol> import IFJ26.* <line\_end>}
+  \item \texttt{<line\_end> -> EOL | EOF}
+  \item \texttt{<opt\_eol> -> <opt\_eol> | $\epsilon$}
   \item \texttt{<top\_list> -> <top\_list> <top\_item> | $\epsilon$}
   \item \texttt{<top\_item> -> <def> | <main> | <extention> | EOL}
-  \item \texttt{<def> -> ( \ <opt\_params> \ ) \ <opt\_colon> = <opt\_eol> <block>}
-  \item \texttt{<opt\_params>-> id \ : <type> <opt\_comma>}
-  \item \texttt{<opt\_comma>-> , | $\epsilon$}
-  \item \texttt{<type>-> int | unit | double | string | boolen | $\epsilon$}
-  \item \texttt{<main>-> $@$ main <opt\_eol> <def>}
+  \item \texttt{<def> -> ( <opt\_params> ) <opt\_colon> = <opt\_eol> <block>}
+  \item \texttt{<opt\_params> -> id : <type> <opt\_comma>}
+  \item \texttt{<opt\_comma> -> , | $\epsilon$}
+  \item \texttt{<type> -> int | unit | double | string | boolen | $\epsilon$}
+  \item \texttt{<main> -> @ main <opt\_eol> <def>}
   \item \texttt{<extention> -> extention ( id : <type> ) EOL IND <opt\_eol> <def> DED}
-  \item \texttt{<block>-><opt\_eol> <opt\_ind> <statement> <compound> <opt\_eol>}
-  \item \texttt{<compound>-> <opt\_if\_for\_while> <opt\_semicolon>}
+  \item \texttt{<block> -> <opt\_eol> <opt\_ind> <statement> <compound> <opt\_eol>}
+  \item \texttt{<compound> -> <opt\_if\_for\_while> <opt\_semicolon>}
   \item \texttt{<opt\_semicolon> -> ; | $\epsilon$}
   \item \texttt{<opt\_ind> -> IND | $\epsilon$}
   \item \texttt{<statement> -> <opt\_valvar> | <opt\_return> | <opt\_while> | <opt\_if> | <opt\_for> | <opt\_asign> | <expression>}
@@ -106,7 +156,6 @@
   \item \texttt{<if> -> if <expression> then <block> <opt\_eol> <opt\_else>}
   \item \texttt{<opt\_else> -> <else> | $\epsilon$}
   \item \texttt{<else> -> <opt\_if> | <block>}
-  \item \texttt{<opt\_if> -> <if> | $\epsilon$}
   \item \texttt{<for> -> for <opt\_eol\_gen> do <block>}
   \item \texttt{<opt\_eol\_gen> -> <opt\_eol> | $\epsilon$ <for\_gen> <for\_guard>}
   \item \texttt{<for\_gen> -> id <expression> to | until <expression> <opt\_by>}
@@ -116,10 +165,12 @@
   \item \texttt{<asign> -> id = <expression>}
 \end{enumerate}
 
-\newpage
+\clearpage
+\subsection{Precedenčná tabuľka}
+\label{sec:precedencna-tabulka}
 
-        \begin{table}[ht]
-    \centering
+\begin{table}[H]
+  \centering
   \caption{Precedenčná tabuľka}
   \label{Tabulka 1}
   \begin{tabular}{l *{17}{c}}
