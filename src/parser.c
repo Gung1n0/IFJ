@@ -115,6 +115,10 @@ const char *token_name(TokenType type) {
       [TOKEN_INTERP_EXPR_END] = "'}'",
       [TOKEN_INTERP_END] = "end of interpolated string",
   };
+  size_t count = sizeof(names) / sizeof(names[0]);
+  if ((size_t)type < count && names[type] != NULL)
+    return names[type];
+  return "unknown token";
 }
 
 /// @brief go to next token
