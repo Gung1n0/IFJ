@@ -34,8 +34,7 @@ typedef enum {
   OPERAND_FLOAT,
   OPERAND_VARIABLE,
   OPERAND_BOOL,
-  OPERAND_NUMBERED,
-  OPERAND_METHOD
+  OPERAND_NUMBERED
 
 } gen_operand_type;
 
@@ -77,22 +76,14 @@ typedef struct {
       char *part;
     } numbered;
 
-    // method of extension $type$name$part
-    struct {
-      char *type;
-      char *name;
-      char *part;
-    } method;
   } as;
 } gen_operand;
 
-// state of code generator, to keep track of labels, current function and type
-// of receiver for method calls
+// state of code generator, to keep track of labels, current function
 typedef struct {
   node *program;
   node *function;
   int label_cnt;
-  char *received_type;
 } gen_context;
 
 /// @brief Prints error message to stderr and exits, only prints internal errors
@@ -184,52 +175,7 @@ static gen_operand operand_numbered(char *type, int number, char *part) {
   return operand;
 }
 
-/// @brief Creates label of the extension method $type$name / $type$name$part
-/// EXTKW, type is part of the label, same name can be used for different types
-/// and functions
-/// @param type name of the type of the receiver
-/// @param name method name
-/// @param part label suffix, NULL for method alone
-/// @return operand of the method label
-static gen_operand operand_method(char *type, char *name, char *part) {
-  gen_operand operand = {.type = OPERAND_METHOD,
-                         .as.method = {type, name, part}};
-  return operand;
-}
 
-/// @brief transforms reciever type to its name used in labels of methods,
-/// TYPE_INT -> Integer ...
-/// @param type Data type of the receiver
-/// @return name of the type or internal error
-static char *method_type_name(data_types type) {
-
-  if (type == TYPE_BOOLEAN) {
-    return "Boolean";
-  } else if (type == TYPE_INT) {
-    return "Integer";
-  } else if (type == TYPE_DOUBLE) {
-    return "Double";
-  } else if (type == TYPE_STRING) {
-    return "String";
-  } else if (type == TYPE_UNIT) {
-    return "Unit";
-  } else {
-    gen_error(ERR_INTERNAL, NULL);
-    return NULL;
-  }
-}
-
-/// @brief name of type of receiver, int receiver of method Double is converted
-/// by expression_generate so its type is TYPE_DOUBLE
-/// @param received node
-/// @return name of the type for label of called method
-static char *receiver_method_type_name(node *received) {
-
-  if (received->convert_to_double) {
-    return "Double";
-  }
-  return method_type_name(received->data_type);
-}
 
 /// @brief find the function @main in program
 /// @param program ast node
@@ -294,13 +240,8 @@ static void print_operand(gen_operand operand) {
 
     printf("$%s$%d$%s", operand.as.numbered.type, operand.as.numbered.number,
            operand.as.numbered.part);
-  } else if (operand.type == OPERAND_METHOD) {
-    printf("$%s$%s", operand.as.method.type, operand.as.method.name);
-
-    if (operand.as.method.part != NULL) {
-      printf("$%s", operand.as.method.part);
-    }
-  } else {
+  }
+  else {
     gen_error(ERR_INTERNAL, NULL);
   }
 }
@@ -778,11 +719,7 @@ static void valmem_generate(gen_context *ctx, node *expr) {
   char *valmem = expr->as.member.name;
   expression_generate(ctx, expr->as.member.obj);
 
-  if (expr->func != NULL) {
-    call_(operand_method(receiver_method_type_name(expr->as.member.obj), valmem,
-                         NULL));
-
-  } else if (strcmp(valmem, "toInt") == 0) {
+   if (strcmp(valmem, "toInt") == 0) {
     call_(operand_function("toInt", NULL));
   } else if (strcmp(valmem, "toString") == 0) {
     call_(operand_function("toStr", NULL));
@@ -1170,11 +1107,9 @@ void code_generate(struct node *program) {
   for (int i = 0; i < program->as.program.size; i++) {
     node *item = program->as.program.items[i];
     if (item->type == node_extension) {
-      ctx.received_type = method_type_name(item->as.extension.type);
       for (int j = 0; j < item->as.extension.size; j++) {
         function_generate(&ctx, item->as.extension.methods[j]);
       }
-      ctx.received_type = NULL;
     } else {
       function_generate(&ctx, program->as.program.items[i]);
     }
