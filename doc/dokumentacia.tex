@@ -47,7 +47,7 @@
     \begin{minipage}[c]{0.65\textwidth}
         \raggedleft
         \begin{tabular}{r@{\hspace{1.5em}}c}
-            \textbf{Tomáš Badínsky} -- xbadint00 (vedúci) & 25\,\% \\
+            \textbf{Tomáš Badinský} -- xbadint00 (vedúci) & 25\,\% \\
             Adrián Murín -- xmurina00 & 25\,\% \\
             Filip Šturák -- xsturaf00 & 25\,\% \\
             Tomáš Zomborský -- xzombot00 & 25\,\%
@@ -64,8 +64,16 @@
     % write here
 
 \section{Práca v tíme}
-    % write here
-
+    \subsection{Postup práce}
+    Na projekte sme pracovali postupne od konca októbra / začiatkom novembra. Všetku komunikáciu o projekte sme viedli prostredníctvom služby Discord, na ktorej sme mávali online stretnutia. Na správu súborov sme využívali systém Git a GitHub, ktorý nám zabezpečil priestor na prehľadnejšiu prácu v tíme a orientovanie sa v zmenách v kóde jednotlivých členov, ale aj samotné verzovanie súborov. Pull requesty sme vytvárali len po otestovaní danej časti projektu a zároveň ho mohol skontrolovať a odsúhlasiť len člen tímu, ktorý ho nevytváral. Prácu sme si rozdelili na prvom stretnutí tak, že každý dostal body, ktoré mal vypracovať do prvého pokusného odovzdania. V priebehu práce na projekte sme takto absolvovali šesť stretnutí, na ktorých sme diskutovali problémy a výsledky jednotlivých častí.
+    \subsection{Rozdelenie práce}
+    Prácu na projekte sme si rozdelili rovnomerne, teda každý 25\,\% kvôli celkovej náročnosti projektu.
+    \begin{itemize}
+        \item \textbf{Tomáš Badinský 25\,\%} -- vedenie tímu, generátor kódu, testy, makefile, dokumentácia
+        \item \textbf{Filip Šturák 25\,\%} % write here
+        \item \textbf{Adrián Murín 25\,\%} % write here
+        \item \textbf{Tomáš Zomborský 25\,\%} % write here
+    \end{itemize}
 \section{Návrh a implementácia}
     \subsection{Lexikálna analýza}
         % write here
@@ -105,18 +113,26 @@
         \item \textbf{semantics.c/h} -- logika sémantickej analýzy; na vstupe prijíma \texttt{AST} z parsera a následne ho anotuje.
         \item \textbf{typerules.c/h} -- pravidlá pre dátové typy, vyhodnocovanie výsledných typov podľa operácie a pod.
         \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
+        \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
+        \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
     \end{itemize}
-        
     \subsection{Generovanie kódu}
-        % write here
-
+        \subsubsection{Vstup a výstup generátora}
+        Vstupom generátora kódu je uzol \emph{AST}, ktorý anotovala sémantická analýza a to odkazi na záznamy z tabuľky symbolov a konverznými príznakmi. \texttt{IFJcode26} vzniká priamo pri prechádzaní tohto \emph{AST} a je zapisovaný na štandardný výstup, to všetko až po úspešnom ukončení všetkých analýz, a preto generátor hlási len internú chybu 99.
+        \subsubsection{Výpočet výrazov}
+        Generátor má pri každom výraze po ruke konečný dátový typ a príznaky, vďaka čomu vyberie druh inštrukcie. Využili sme najmä zásobníkové inštrukcie jazyka \texttt{IFJcode26}. Tým zabezpečujeme, že nemusíme riešiť premenné pre medzivýsledky. Samotný generátor generuje kód operandov zľava doprava, čím sú hodnoty ukladané na vrchol zásobníka a každý ďalší operátor si vstupy berie zo zásobníka, výsledok uloží naspäť. Ak sa jedná o výsledok bez ďalšieho využitia napr. \texttt{print(x)}, jeho výsledok je zo zásobníka zahodený. Operácie, ktoré nedisponovali zásobníkovou verziou v \texttt{IFJcode26}, sme zložili z dostupných zásobníkových inštrukcií.
+        \subsubsection{Funkcie a premmenné}
+        Argumenty a návratové hodnoty sú posunuté cez dátový zásobník, kde sú argumenty aj ukladané volajúcou funkciou cez \texttt{PUSHS}. Po vykonaní \texttt{CALL} je uložená návratová pozícia a skočí na náveštie tej danej funkcie. Každé volanie používateľských funkcií vytvorí \texttt{(CREATEFRAME)} vlastný dočasný rámec, ktorý cez \texttt{(PUSHFRAME)} presunie do zásobníka s rámcami ako nový lokálny rámec a zadefinujú sa všetky lokálne premenné danej funkcie. Vstavané funkcie pracujú s globálnymi pomocnými premennými, čím nevytvárajú nové lokálne rámce. Návratová hodnota funkcie zodpovedá hodnote posledného príkazu alebo hodnote \texttt{return}, ktorý ju uloží na dátový zasobník a skočí na konečné náveštie funkcie.
+        \subsubsection{Náveštia}
+        V generátore sú použité náveštia na adresovanie funkcií a vetvení. Používateľské aj vstavané funkcie začínajú prefixom \texttt{fn\$}, zvyšné začínajú znakom \$ a ich názvom. Všetky štruktúry využívajú počítadlo, ktoré určuje ich poradové číslo v programe.
 \section{Špeciálne algoritmy a dátové štruktúry}
     \subsection{Hashovacia tabuľka}
         Hashovacia tabuľka, implementovaná v súbore \texttt{hashtable.c}, tvorí základ sémantickej analýzy. Využívame ju na ukladanie premenných a funkcií, no vďaka použitiu \texttt{void} ukazovateľa dokáže uchovávať ľubovoľné dáta. Na výpočet indexov tabuľka používa DJB algoritmus. Ak sa na vypočítanom indexe už nachádza hodnota, index sa inkrementuje o 1 dovtedy, kým sa nenájde voľné miesto. Pred každým vložením sa kontroluje naplnenosť tabuľky. Tabuľka má celkovú kapacitu 307 miest a za \uv{plnú} sa považuje vtedy, keď obsadenosť presiahne 70\,\% jej maximálnej kapacity. Číslo 307 sme zvolili preto, že ide o dostatočne veľké prvočíslo, čo minimalizuje zhlukovanie a zabezpečuje rovnomernejšiu distribúciu. Veľkosť tabuľky sa dynamicky nemení, takže ak počet prvkov presiahne 214, ďalšie vloženie sa zamietne.
 
     \subsection{Symbolová tabuľka}
         Symbolová tabuľka, implementovaná v súbore \texttt{symtable.c}, je nadstavbou nad hashovacou tabuľkou. Uchováva takzvaný scope chain, ktorý je realizovaný pomocou abstraktného dátového typu zreťazeného zoznamu (linked list). Každý scope obsahuje vlastnú hashovaciu tabuľku s premennými deklarovanými v danom scope a ukazovateľ na nadradený scope (\uv{rodiča}). Pri deklarácii novej premennej sa záznam pridá do hashovacej tabuľky aktuálneho scopu. Pri použití existujúcej premennej sa postupne prehľadávajú všetky hashovacie tabuľky v rámci celého scope chainu, kým sa premenná nenájde. Vyhľadávanie začína v aktuálnom scope a postupuje smerom nahor cez ukazovatele na rodiča. Ak sa premenná nenájde, znamená to, že neexistuje, a prekladač vráti chybu 3. Funkcie sú uložené mimo scope chainu vo vlastnej hashovacej tabuľke. Tabuľka taktiež poskytuje funkcie \texttt{sym\_detach} a \texttt{sym\_restore}, ktoré umožňujú dočasne odpojiť a opätovne pripojiť scope chain; tieto funkcie sa využívajú pri analýze nenavštívených (\texttt{unvisited}) funkcií.
-
+\section{Využitie prostriedkov AI}
+    AI agentov sme pri práci na projekte využili, a to hlavne ako prostriedok na vysvetlenie princípov častí projektu alebo objasnenie nejasností, ku ktorým sme sa počas práce na projekte dostali. Zároveň sme AI využili na tvorbu priebežných testov projektu, jednotlivých častí, ale neskôr aj ako celku a rozšírení. Pri použití AI pri generovaní kódu sme boli transparentní a vygenerované časti sme označili, aj keď sa jednalo len o repetitívne časti kódu.
 \section{Záver}
     % write here
 
@@ -209,10 +225,9 @@
 \clearpage
 \subsection{LL tabuľka}
 \label{sec:precedencna-tabulka}
-
-\begin{table}[ht]
+\begin{table}[H]
 \centering
-\rotatebox{-90}{%
+\rotatebox{90}{%
   \begin{minipage}{0.88\textheight}
   \centering
   \label{tab:ll-table}
