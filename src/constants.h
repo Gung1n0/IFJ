@@ -1,3 +1,12 @@
+/*
+ * implementation of a compiler for the language IFJ26
+ * constants.h
+ * precedence table
+ *
+ * xsturaf00 Filip Šturák
+ *
+ */
+
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 

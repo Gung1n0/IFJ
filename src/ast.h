@@ -1,3 +1,16 @@
+/*
+ * implementation of a compiler for the language IFJ26
+ * ast.h
+ * abstract syntax tree (AST) node and structure definitions
+ *
+ * xsturaf00 Filip Šturák
+ *
+ * basic thinking behind AST: each node shares type, source
+ * position, data type, symtable links and stores node specific data in
+ * the "as" union to keep memory usage compact
+ *
+ */
+
 #ifndef AST_H
 #define AST_H
 
