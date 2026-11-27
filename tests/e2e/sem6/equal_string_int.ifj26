@@ -1,0 +1,11 @@
+// TEST: String == Int
+// SPEC: 3
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  if "a" == 1 then
+    print("x")
+  else
+    print("y")

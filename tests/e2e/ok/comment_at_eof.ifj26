@@ -1,0 +1,10 @@
+// TEST: line comment at the end of file without newline
+// SPEC: 1.1
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: at EOF the lexer must close the last line (EOL) and all blocks (DEDENT)
+import ifj26.*
+
+@main def main(): Unit =
+  print("c\n")
+// last line without newline

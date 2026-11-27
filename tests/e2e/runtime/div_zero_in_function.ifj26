@@ -1,0 +1,11 @@
+// TEST: division by zero inside a called function -> 57
+// SPEC: 3
+// EXPECT: compile=0 run=57
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def d(a: Int, b: Int): Int = a / b
+
+@main def main(): Unit =
+  val r = d(1, 0)
+  print(r)

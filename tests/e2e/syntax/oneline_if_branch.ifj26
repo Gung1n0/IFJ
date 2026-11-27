@@ -1,0 +1,12 @@
+// TEST: one-line body of an if branch
+// SPEC: 2.4
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// EXT: CONTROL (expectation holds only if this extension is NOT implemented)
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  if a < 2 then print("x")
+  else
+    print("y")

@@ -1,0 +1,10 @@
+// TEST: parameter list starting with comma
+// SPEC: 2.3
+// EXPECT: compile=2 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(, a: Int): Int = a
+
+@main def main(): Unit =
+  print("x")

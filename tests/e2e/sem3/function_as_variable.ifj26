@@ -1,0 +1,11 @@
+// TEST: function name used as a variable
+// SPEC: 2.2, 2.3
+// EXPECT: compile=3 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(): Int = 1
+
+@main def main(): Unit =
+  val a = f
+  print(a)

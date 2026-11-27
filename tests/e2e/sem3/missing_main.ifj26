@@ -1,0 +1,8 @@
+// TEST: no function with @main
+// SPEC: 2
+// EXPECT: compile=3 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(): Unit =
+  print("x")

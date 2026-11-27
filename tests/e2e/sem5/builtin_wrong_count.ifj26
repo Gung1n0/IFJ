@@ -1,0 +1,9 @@
+// TEST: subStr with two arguments
+// SPEC: 4
+// EXPECT: compile=5 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val s = subStr("abc", 1)
+  print(s)

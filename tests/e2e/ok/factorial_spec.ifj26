@@ -1,0 +1,18 @@
+// TEST: example program from the specification (section 2)
+// SPEC: 2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def factorial(n: Int): Int =
+  var result = 1
+  var i: Int = n // type is optional
+  while i > 1 do
+    result = result * i
+    i = i - 1
+  result // last expression is the return value
+@main def runFoo(): Unit =
+  val n = readInt()
+  val result = factorial(n)
+  print(result)
+  print("\n")

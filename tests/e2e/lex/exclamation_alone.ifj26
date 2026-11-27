@@ -1,0 +1,10 @@
+// TEST: character ! without = (only in BOOLTHEN)
+// SPEC: 1.1, 6
+// EXPECT: compile=1 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// EXT: BOOLTHEN (expectation holds only if this extension is NOT implemented)
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1
+  val b = !a

@@ -1,0 +1,12 @@
+// TEST: recursive function without explicit return type
+// SPEC: 2.3
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+def f(n: Int) =
+  val m = n - 1
+  f(m)
+
+@main def main(): Unit =
+  print("x")

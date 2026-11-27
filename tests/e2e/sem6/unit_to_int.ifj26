@@ -1,0 +1,11 @@
+// TEST: Unit value for Int variable
+// SPEC: 1.3
+// EXPECT: compile=6 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: Unit literal () must be accepted by the parser as a term (specification 1.1, 2.1)
+import ifj26.*
+
+@main def main(): Unit =
+  val u = ()
+  val a: Int = u
+  print(a)

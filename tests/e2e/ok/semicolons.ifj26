@@ -1,0 +1,11 @@
+// TEST: several statements on one line separated by ;
+// SPEC: 1.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 1; val b = 2; print(a); print(b)
+  print("\n")
+  var c = 0; c = a + b; print(c)
+  print("\n")

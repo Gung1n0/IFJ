@@ -1,0 +1,21 @@
+// TEST: unary minus on Int, Double and parenthesized expression
+// SPEC: 3
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val a = 5
+  val b = -a
+  print(b)
+  print("\n")
+  val c = -(3 - 10)
+  print(c)
+  print("\n")
+  val d = -b
+  print(d)
+  print("\n")
+  val x = 2.5
+  val y = -x
+  print(y)
+  print("\n")

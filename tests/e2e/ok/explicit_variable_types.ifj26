@@ -1,0 +1,24 @@
+// TEST: variables with explicit types of every kind
+// SPEC: 2.2
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+// HINT: Unit literal () must be accepted by the parser as a term (specification 1.1, 2.1)
+import ifj26.*
+
+@main def main(): Unit =
+  val a: Int = 1
+  val b: Double = 2.5
+  val c: String = "s"
+  val d: Unit = ()
+  var e: Int = a
+  e = e + 41
+  print(a)
+  print(" ")
+  print(b)
+  print(" ")
+  print(c)
+  print(" ")
+  print(d)
+  print(" ")
+  print(e)
+  print("\n")

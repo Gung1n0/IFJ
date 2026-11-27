@@ -1,0 +1,10 @@
+// TEST: Double / Int zero (converted) -> 57
+// SPEC: 3, 7.4.3
+// EXPECT: compile=0 run=57
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val z = 0
+  val r = 1.5 / z
+  print(r)

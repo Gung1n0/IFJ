@@ -1,0 +1,22 @@
+// TEST: Double division converted with toStr (%.2f), Int division
+// SPEC: 3, 4
+// EXPECT: compile=0 run=0
+// AI GENERATED (Claude Opus 5.5, Anthropic), prompt in tests/README_e2e.md
+import ifj26.*
+
+@main def main(): Unit =
+  val third = 1.0 / 3.0
+  val s = toStr(third)
+  print(s)
+  print("\n")
+  val q = 10 / 4
+  print(q)
+  print("\n")
+  val r = 10.0 / 4
+  val rs = toStr(r)
+  print(rs)
+  print("\n")
+  val two = 2.0 / 3
+  val ts = toStr(two)
+  print(ts)
+  print("\n")
