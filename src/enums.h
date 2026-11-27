@@ -81,6 +81,7 @@ typedef enum {
   STATE_COMM_EOL,
   STATE_NUM_ZERO,
   STATE_E_SIGN,
+  STATE_INTERP_LOAD,
 } State;
 
 typedef enum {
