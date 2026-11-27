@@ -71,13 +71,12 @@
     \begin{itemize}
         \item \textbf{Tomáš Badinský 25\,\%} -- vedenie tímu, generátor kódu, testy, makefile, dokumentácia
         \item \textbf{Filip Šturák 25\,\%} -- AST, syntaktická analýza, precedenčná analýza, LL gramatika, dokumentácia
-        \item \textbf{Adrián Murín 25\,\%} % write here
+        \item \textbf{Adrián Murín 25\,\%} -- lexikálna analýza, návrh konečného automatu, dokumentácia
         \item \textbf{Tomáš Zomborský 25\,\%} -- hashovacia tabuľka, symbolová tabuľka, sémantická analýza, dokumentácia
     \end{itemize}
 \section{Návrh a implementácia}
     \subsection{Lexikálna analýza}
-        % write here
-
+         Lexikálna analýza je implementovaná v súbore \texttt{lexer.c} ako deterministický konečný automat rozšírený o pomocné štruktúry (diagram automatu je v prílohe~\ref{sec:automat}). Funkcia \texttt{get\_token} načítava vstupný súbor znak po znaku a funkcia \texttt{get\_all\_tokens} vracia dynamické pole tokenov pre parser. Nad rámec bežného konečného automatu lexer využíva zásobník odsadenia (\texttt{IndentStack}) na generovanie tokenov \texttt{IND} a \texttt{DED}, počítadlo zátvoriek (\texttt{paren\_level}) na ignorovanie koncov riadkov vnútri zátvoriek a počítadlo úrovne vnorenia blokových komentárov (\texttt{comm\_lvl}). Rozšírenie \texttt{INTERPOLATEDS} je riešené pomocou pomocného frontu tokenov (\texttt{pending\_tokens}), do ktorého lexer rozbaľuje interpolované reťazce \texttt{s"..."} a \texttt{s"""..."""} na zreťazenie pomocou operátora \texttt{+} a volania \texttt{toStr(...)}. V prípade lexikálnej chyby (napr. tabulátor v odsadeni, neukončený reťazec alebo komentár, neplatný exponent) sa uvoľní pamäť a prekladač končí s kódom 1.
     \subsection{Syntaktická analýza}
          Syntaktická analýza, s výnimkou AST a precedenčnej tabuľky, je realizovaná v súbore \texttt{Parser.c} --- konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou \texttt{peek\_token\_array} a správou odsadenia (\texttt{IND}, \texttt{DED}, \texttt{EOL}). Výrazy \texttt{\textless expression\textgreater} sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky. Precedenčná tabuľka bola umiestnená do súboru \texttt{constants.h}, odkiaľ ju \texttt{Parser.c} volá na analýzu. Ďalej bola štruktúra AST pridaná do súboru \texttt{ast.h}, ktorý definuje podštruktúry dátovej štruktúry \texttt{as}, pričom \texttt{as} je realizovaný pomocou \texttt{union} vopred definovaných podštruktúr. Na parsovanie boli taktiež potrebné dátová štruktúra tokenov a pole tokenov, ktoré sú samostatne umiestnené v súbore \texttt{token.h}. Pre \texttt{token.h} a \texttt{ast.h} boli potrebné rôzne enumy, ktoré sa umiestnili do súboru \texttt{enums.h} spolu s enumami, ktoré potrebovali lexikálna analýza, sémantická analýza a generovanie kódu.
     \subsection{Sémantická analýza}
@@ -133,7 +132,7 @@
         \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
         \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
         \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
-        % write here
+        \item \textbf{lexer.c} -- lexikálny analyzátor na báze konečného automatu, spracovanie odsadenia, komentárov, literálov a interpolovaných reťazcov.
     \end{itemize}        
 \section{Špeciálne algoritmy a dátové štruktúry}
     \subsection{Hashovacia tabuľka}
