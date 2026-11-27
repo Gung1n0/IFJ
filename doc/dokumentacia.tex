@@ -133,6 +133,11 @@
         \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
         \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
         \item \textbf{lexer.c} -- lexikálny analyzátor na báze konečného automatu, spracovanie odsadenia, komentárov, literálov a interpolovaných reťazcov.
+        \item \texttt{constants.h} -- obsahuje precedenčnú tabuľku, odkiaľ ju \texttt{Parser.c} volá na analýzu výrazov.
+        \item \textbf{ast.h} -- definuje štruktúru AST a podštruktúry dátovej štruktúry \texttt{as}, pričom \texttt{as} je realizovaný pomocou \texttt{union} vopred definovaných podštruktúr.
+        \item \textbf{token.h} -- samostatne obsahuje dátovú štruktúru tokenov a pole tokenov potrebné na parsovanie.
+        \item \textbf{enums.h} -- sústreďuje rôzne výčtové typy (enumy) potrebné pre \textbf{token.h} a \texttt{ast.h} spolu s enumami, ktoré využívajú lexikálna analýza, sémantická analýza a generovanie kódu.
+        \item \textbf{parser.c} -- vykonáva syntaktickú analýzu rekurzívnym zostupom nad prúdom tokenov s využitím funkcie \texttt{peek\_token\_array}, správy odsadenia (\texttt{IND}, \texttt{DED}, \texttt{EOL}) a volania precedenčnej analýzy výrazov zo súboru \texttt{constants.h}.
     \end{itemize}        
 \section{Špeciálne algoritmy a dátové štruktúry}
     \subsection{Hashovacia tabuľka}
