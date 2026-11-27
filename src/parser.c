@@ -1,3 +1,16 @@
+/*
+ * implementation of a compiler for the language IFJ26
+ * parser.c
+ * interface for the syntactic analyzer (recursive descent parser)
+ *
+ * xsturaf00 Filip Šturák
+ *
+ * basic thinking behind parser: parses the token stream into an AST using
+ * lookahead and indentation handling (IND, DED, EOL), delegating expression
+ * parsing to precedence analysis
+ *
+ */
+
 #include "ast.h"
 #include <stdbool.h>
 #include <stdio.h>
