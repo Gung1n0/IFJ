@@ -1,0 +1,324 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[T1]{fontenc}
+\usepackage[slovak]{babel}
+\usepackage{enumitem}
+\usepackage{pdflscape}
+\usepackage[hidelinks]{hyperref}
+\usepackage{adjustbox}
+\usepackage{etoolbox}
+\usepackage{float}
+\usepackage{rotating}
+
+% give "Literatura" a number
+\makeatletter
+\patchcmd{\thebibliography}{\section*{\refname}}{\section{\refname}}{}{}
+\makeatother
+
+\graphicspath{{./inc/}}
+
+\begin{document}
+
+% title page
+\begin{titlepage}
+    \begin{center}
+        \includegraphics[width=0.5\textwidth]{fit_logo.png}\par
+        \vspace{4cm}
+        {\Large Dokumentácia projektu z predmetov IFJ a IAL\par}
+        \vspace{0.5\baselineskip}
+        {\Huge\bfseries Implementácia imperatívneho prekladača pre jazyk IFJ26\par}
+        \vspace{2.5\baselineskip}
+        {\large Tím \texttt{xbadint00}, variant TRP-izp\par}
+        Rozšírenia: BOOLTHEN, CONTROL, EXTKW, FUNEXP, INTERPOLATED, PARAMLISTS a VALMEM\par
+        \vspace{0.5\baselineskip}
+        \url{https://github.com/Gung1n0/IFJ}
+    \end{center}
+
+    \vfill
+
+    \noindent
+    \begin{minipage}[c]{0.30\textwidth}
+        {\large 19. novembra 2026}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[c]{0.65\textwidth}
+        \raggedleft
+        \begin{tabular}{r@{\hspace{1.5em}}c}
+            \textbf{Tomáš Badinský} -- xbadint00 (vedúci) & 25\,\% \\
+            Adrián Murín -- xmurina00 & 25\,\% \\
+            Filip Šturák -- xsturaf00 & 25\,\% \\
+            Tomáš Zomborský -- xzombot00 & 25\,\%
+        \end{tabular}
+    \end{minipage}
+\end{titlepage}
+
+{\large
+\tableofcontents
+}
+\pagebreak
+
+\section{Úvod}
+    Cieľom projektu bolo vytvoriť prekladač pre jazyk IFJ26 (podmnožinu jazyka Scala), ktorý prekladá zdrojový kód do tzv. medzikódu IFJcode26. Projekt má podobu konzolovej aplikácie, implementovanej v jazyku C, ktorá číta dáta zo štandardného vstupu a výsledok vypisuje na štandardný výstup. V prípade chyby vypíše chybové hlásenie na štandardný chybový výstup a ukončí sa s príslušným chybovým kódom.
+
+\section{Práca v tíme}
+    \subsection{Postup práce}
+    Na projekte sme pracovali postupne od konca októbra / začiatkom novembra. Všetku komunikáciu o projekte sme viedli prostredníctvom služby Discord, na ktorej sme mávali online stretnutia. Na správu súborov sme využívali systém Git a GitHub, ktorý nám zabezpečil priestor na prehľadnejšiu prácu v tíme a orientovanie sa v zmenách v kóde jednotlivých členov, ale aj samotné verzovanie súborov. Pull requesty sme vytvárali len po otestovaní danej časti projektu a zároveň ho mohol skontrolovať a odsúhlasiť len člen tímu, ktorý ho nevytváral. Prácu sme si rozdelili na prvom stretnutí tak, že každý dostal body, ktoré mal vypracovať do prvého pokusného odovzdania. V priebehu práce na projekte sme takto absolvovali šesť stretnutí, na ktorých sme diskutovali problémy a výsledky jednotlivých častí.
+    \subsection{Rozdelenie práce}
+    Prácu na projekte sme si rozdelili rovnomerne, teda každý 25\,\% kvôli celkovej náročnosti projektu.
+    \begin{itemize}
+        \item \textbf{Tomáš Badinský 25\,\%} -- vedenie tímu, generátor kódu, testy, makefile, dokumentácia
+        \item \textbf{Filip Šturák 25\,\%} -- AST, syntaktická analýza, precedenčná analýza, LL gramatika, dokumentácia
+        \item \textbf{Adrián Murín 25\,\%} -- lexikálna analýza, návrh konečného automatu, dokumentácia
+        \item \textbf{Tomáš Zomborský 25\,\%} -- hashovacia tabuľka, symbolová tabuľka, sémantická analýza, dokumentácia
+    \end{itemize}
+\section{Návrh a implementácia}
+    \subsection{Lexikálna analýza}
+         Lexikálna analýza je implementovaná v súbore \texttt{lexer.c} ako deterministický konečný automat rozšírený o pomocné štruktúry (diagram automatu je v prílohe~\ref{sec:automat}). Funkcia \texttt{get\_token} načítava vstupný súbor znak po znaku a funkcia \texttt{get\_all\_tokens} vracia dynamické pole tokenov pre parser. Nad rámec bežného konečného automatu lexer využíva zásobník odsadenia (\texttt{IndentStack}) na generovanie tokenov \texttt{IND} a \texttt{DED}, počítadlo zátvoriek (\texttt{paren\_level}) na ignorovanie koncov riadkov vnútri zátvoriek a počítadlo úrovne vnorenia blokových komentárov (\texttt{comm\_lvl}). Rozšírenie \texttt{INTERPOLATEDS} je riešené pomocou pomocného frontu tokenov (\texttt{pending\_tokens}), do ktorého lexer rozbaľuje interpolované reťazce \texttt{s"..."} a \texttt{s"""..."""} na zreťazenie pomocou operátora \texttt{+} a volania \texttt{toStr(...)}. V prípade lexikálnej chyby (napr. tabulátor v odsadeni, neukončený reťazec alebo komentár, neplatný exponent) sa uvoľní pamäť a prekladač končí s kódom 1.
+    \subsection{Syntaktická analýza}
+         Syntaktická analýza, s výnimkou AST a precedenčnej tabuľky, je realizovaná v súbore \texttt{Parser.c} --- konkrétne metódou rekurzívneho zostupu za pomoci pohľadu vpred na tokeny funkciou \texttt{peek\_token\_array} a správou odsadenia (\texttt{IND}, \texttt{DED}, \texttt{EOL}). Výrazy \texttt{\textless expression\textgreater} sú spracované samostatne syntaktickou analýzou podľa precedenčnej tabuľky. Precedenčná tabuľka bola umiestnená do súboru \texttt{constants.h}, odkiaľ ju \texttt{Parser.c} volá na analýzu. Ďalej bola štruktúra AST pridaná do súboru \texttt{ast.h}, ktorý definuje podštruktúry dátovej štruktúry \texttt{as}, pričom \texttt{as} je realizovaný pomocou \texttt{union} vopred definovaných podštruktúr. Na parsovanie boli taktiež potrebné dátová štruktúra tokenov a pole tokenov, ktoré sú samostatne umiestnené v súbore \texttt{token.h}. Pre \texttt{token.h} a \texttt{ast.h} boli potrebné rôzne enumy, ktoré sa umiestnili do súboru \texttt{enums.h} spolu s enumami, ktoré potrebovali lexikálna analýza, sémantická analýza a generovanie kódu.
+    \subsection{Sémantická analýza}
+    \subsubsection{Prehľad}
+        Sémantická analýza je ďalším krokom prekladača, ktorý nasleduje po syntaktickej analýze. Ako vstup prijíma \emph{AST} z parseru, ktorý sa prechádza a následne anotuje. Anotácia pozostáva z nastavovania flagov a dátových typov v AST, vkladania ukazovateľov do tabuľky symbolov a pridávania premenných do dynamického poľa \texttt{locals}. Analýza je rozdelená do dvoch fáz. V prvej fáze sa strom prechádza a deklarujú sa všetky funkcie, čo zaručuje, že sa dajú volať aj v prípade, že sú definované neskôr v kóde. V druhej fáze sa už analyzujú telá jednotlivých funkcií.
+
+    \subsubsection{Inferencia}
+        Keďže najprv deklarujeme všetky funkcie vrátane tých, ktorých návratový typ ešte nepoznáme, môže nastať situácia, kedy sa snažíme zavolať funkciu bez znalosti jej návratového typu. Preto sme využili prístup, pri ktorom funkciu analyzujeme vtedy, keď ju potrebujeme. Na sledovanie stavu funkcie slúži enum \texttt{i\_state}. Pre každú funkciu s explicitným návratovým typom nastavíme \texttt{i\_state} na \texttt{done}. Ak takúto funkciu nájdeme pri analýze, môžeme rovno použiť jej návratový typ a nemusíme ju ďalej analyzovať. Ak funkcia nemá explicitný návratový typ a \texttt{i\_state = unvisited}, dočasne odpojíme celý scope chain. To nám zaručí, že môžeme analyzovať neznámu funkciu bez toho, aby videla premenné z iných scopov. Po dokončení analýzy celý scope chain jednoducho pripojíme naspäť a pokračujeme v analýze. Ak je \texttt{i\_state = in\_progress}, znamená to, že sme narazili na rekurziu. Tento prístup však nedokáže zachytiť každý typ rekurzie, preto pre každé volanie funkcie vytvárame orientovanú hranu (z $\Rightarrow$ \text{do}) a na detekciu cyklov používame jednoduchý DFS algoritmus. V oboch prípadoch vraciame chybu 6.
+
+    \subsubsection{Kontrola typov}
+        Kontrola typov prebieha v súbore \texttt{typerules.c}, ktorý má na starosti overovanie samotných pravidiel pri priraďovaní dátových typov. Kontrolnú logiku sme sa rozhodli vyčleniť do osobitného súboru pre lepšiu prehľadnosť. Funkcie \texttt{binary\_operation} a \texttt{unary\_operation} vyhodnocujú výsledný typ pri rôznych logických aj numerických operáciách. Kód taktiež kontroluje, či je možné premenné priradiť a či je nutná konverzia z typu \texttt{Int} na \texttt{Double}. Ak je konverzia nutná, aktuálnemu uzlu sa pridelí príslušný flag, aby generátor kódu vedel, že s premennou má pracovať ako s typom \texttt{Double}.
+
+    \subsubsection{Rozšírenia}
+    \paragraph{PARAMLISTS}
+        Ak nie je nájdený názov premennej, musíme overiť, či neexistuje funkcia s rovnakým názvom. Ak áno, transformujeme uzol na volanie funkcie, ktoré následne analyzujeme. Pri funkciách nám nestačí poznať iba počet parametrov; musíme taktiež ukladať zoznamy parametrov a ich dĺžky, ktoré musia byť pri volaní funkcie identické.
+
+    \paragraph{VALMEM}
+        \texttt{.length} a \texttt{.toInt} sú v podstate fixné tabuľky členov (memberov), kde má každý člen definovaný vstupný a výsledný typ. Tie sa kontrolujú ako prvé, a ak sa v tabuľke nenachádzajú, prechádzame na rozšírenie EXTKW.
+
+    \paragraph{EXTKW}
+        Pri metódach, ako je napríklad \texttt{plus} pre typ \texttt{Int}, nesmie nastať kolízia s bežnou funkciou \texttt{plus}. Preto metódy ukladáme pod upraveným názvom, napríklad \texttt{Int\$plus}. Keďže znak \uv{\texttt{\$}} sa v zdrojovom programe nemôže vyskytovať, kolízia je vylúčená. Pri volaní ako \texttt{x.plus(1)} sa \texttt{x} stáva prvým parametrom metódy. Keď pri analýze narazíme na zápis \texttt{x.plus(1)}, prepíšeme ho na volanie funkcie \texttt{Int\$plus(x)(1)}.
+
+    \paragraph{CONTROL}
+        Konštrukcia \texttt{if} použitá ako výraz musí obsahovať aj vetvu \texttt{else}, pričom obe vetvy musia mať rovnaký dátový typ. Pri cykle \texttt{for} sa najprv vyhodnotia hraničné hodnoty ešte pred vytvorením riadiacej premennej cyklu. Taktiež vytvárame skryté pomocné premenné \texttt{\$for\_step} a \texttt{\$for\_end}.
+
+    \paragraph{BOOLTHEN, FUNEXP a INTERPOLATEDS}
+        Tieto rozšírenia si v sémantickej časti projektu nevyžadujú takmer žiadne špeciálne úpravy.
+
+
+    \subsection{Generovanie kódu}
+        \subsubsection{Vstup a výstup generátora}
+        Vstupom generátora kódu je uzol \emph{AST}, ktorý anotovala sémantická analýza a to odkazi na záznamy z tabuľky symbolov a konverznými príznakmi. \texttt{IFJcode26} vzniká priamo pri prechádzaní tohto \emph{AST} a je zapisovaný na štandardný výstup, to všetko až po úspešnom ukončení všetkých analýz, a preto generátor hlási len internú chybu 99.
+        \subsubsection{Výpočet výrazov}
+        Generátor má pri každom výraze po ruke konečný dátový typ a príznaky, vďaka čomu vyberie druh inštrukcie. Využili sme najmä zásobníkové inštrukcie jazyka \texttt{IFJcode26}. Tým zabezpečujeme, že nemusíme riešiť premenné pre medzivýsledky. Samotný generátor generuje kód operandov zľava doprava, čím sú hodnoty ukladané na vrchol zásobníka a každý ďalší operátor si vstupy berie zo zásobníka, výsledok uloží naspäť. Ak sa jedná o výsledok bez ďalšieho využitia napr. \texttt{print(x)}, jeho výsledok je zo zásobníka zahodený. Operácie, ktoré nedisponovali zásobníkovou verziou v \texttt{IFJcode26}, sme zložili z dostupných zásobníkových inštrukcií.
+        \subsubsection{Funkcie a premmenné}
+        Argumenty a návratové hodnoty sú posunuté cez dátový zásobník, kde sú argumenty aj ukladané volajúcou funkciou cez \texttt{PUSHS}. Po vykonaní \texttt{CALL} je uložená návratová pozícia a skočí na náveštie tej danej funkcie. Každé volanie používateľských funkcií vytvorí \texttt{(CREATEFRAME)} vlastný dočasný rámec, ktorý cez \texttt{(PUSHFRAME)} presunie do zásobníka s rámcami ako nový lokálny rámec a zadefinujú sa všetky lokálne premenné danej funkcie. Vstavané funkcie pracujú s globálnymi pomocnými premennými, čím nevytvárajú nové lokálne rámce. Návratová hodnota funkcie zodpovedá hodnote posledného príkazu alebo hodnote \texttt{return}, ktorý ju uloží na dátový zasobník a skočí na konečné náveštie funkcie.
+        \subsubsection{Náveštia}
+        V generátore sú použité náveštia na adresovanie funkcií a vetvení. Používateľské aj vstavané funkcie začínajú prefixom \texttt{fn\$}, zvyšné začínajú znakom \$ a ich názvom. Všetky štruktúry využívajú počítadlo, ktoré určuje ich poradové číslo v programe.
+        \subsubsection{Rozšírenia}
+        \paragraph{VALMEM}
+            Vyhodnocuje výraz na zásobníku a volá príslušnú funkciu z knižnice: \texttt{.toString} $\Rightarrow$ \texttt{fn\$toStr}
+        \paragraph{CONTROL}
+            Pridáva \texttt{if} ako výraz, každá vetva má svoju hodnotu na zásobníku, cyklus \texttt{for} je rozdelený na začiatok a koniec ktoré sú uložené v premenných. Smer iterovania sa určuje znamienkom kroku. Nepravdivá podmienka preskakuje telo aktuálnej interácie a spúšťa ďalšiu interáciu.
+        \paragraph{BOOLTHEN}
+            Skracuje vyhodnotenie operátorov \texttt{\&\&} a \texttt{||}, vyhodnoti ľavý operand s \texttt{false} pre \texttt{\&\&} alebo true pre \texttt{||}, pri zhode preskočí na zodpovedajúce náveštie \texttt{\$and\$short}, \texttt{\$or\$short}, \texttt{\$end\$end}.
+        \paragraph{EXTKW, PARAMLISTS, INTERPOLATEDS, FUNEXP} Rozšírenia bez zvláštnej obsluhy na strane generátora kódu.
+\section{Súbory prekladača}
+    \begin{itemize}
+        \item \textbf{hashtable.c/h} -- implementácia hashovacej tabuľky, obsahuje všetky potrebné funkcie pre ADT hashovacej tabuľky.
+        \item \textbf{symtable.c/h} -- obsahuje implementáciu tabuľky symbolov, ktorá stavia nad funkciami z \texttt{hashtable.h}.
+        \item \textbf{semantics.c/h} -- logika sémantickej analýzy; na vstupe prijíma \texttt{AST} z parsera a následne ho anotuje.
+        \item \textbf{typerules.c/h} -- pravidlá pre dátové typy, vyhodnocovanie výsledných typov podľa operácie a pod.
+        \item \textbf{builtins.h} -- makrá pre vstavané funkcie; obsah mohol byť súčasťou \texttt{symtable.c}, ale z organizačných dôvodov sme ho oddelili.
+        \item \textbf{main.c} -- vstup prekladača, načítava tokeny do z stdin a nasledne spúšťa sekvenciu analýz a generátor kódu, uvoľňuje tabuľku symbolov, AST a tokeny. 
+        \item \textbf{codegen.c/h} -- prekladá anotovaný AST na IFJcode26 a vypisuje ho na stdout, rozhranie v \texttt{codegen.h} tvorí jedna funkcia \texttt{code\_generate}.
+        \item \textbf{lexer.c} -- lexikálny analyzátor na báze konečného automatu, spracovanie odsadenia, komentárov, literálov a interpolovaných reťazcov.
+        \item \textbf{constants.h} -- obsahuje precedenčnú tabuľku, odkiaľ ju \texttt{parser.c} volá na analýzu výrazov.
+        \item \textbf{ast.h} -- definuje štruktúru AST a podštruktúry dátovej štruktúry \texttt{as}, pričom \texttt{as} je realizovaný pomocou \texttt{union} vopred definovaných podštruktúr.
+        \item \textbf{token.h} -- samostatne obsahuje dátovú štruktúru tokenov a pole tokenov potrebné na parsovanie.
+        \item \textbf{enums.h} -- sústreďuje rôzne výčtové typy (enumy) potrebné pre \texttt{token.h} a \texttt{ast.h} spolu s enumami, ktoré využívajú lexikálna analýza, sémantická analýza a generovanie kódu.
+        \item \textbf{parser.c} -- vykonáva syntaktickú analýzu rekurzívnym zostupom nad prúdom tokenov s využitím funkcie \texttt{peek\_token\_array}, správy odsadenia (\texttt{IND}, \texttt{DED}, \texttt{EOL}) a volania precedenčnej analýzy výrazov zo súboru \texttt{constants.h}.
+    \end{itemize}        
+\section{Špeciálne algoritmy a dátové štruktúry}
+    \subsection{Hashovacia tabuľka}
+        Hashovacia tabuľka, implementovaná v súbore \texttt{hashtable.c}, tvorí základ sémantickej analýzy. Využívame ju na ukladanie premenných a funkcií, no vďaka použitiu \texttt{void} ukazovateľa dokáže uchovávať ľubovoľné dáta. Na výpočet indexov tabuľka používa DJB algoritmus. Ak sa na vypočítanom indexe už nachádza hodnota, index sa inkrementuje o 1 dovtedy, kým sa nenájde voľné miesto. Pred každým vložením sa kontroluje naplnenosť tabuľky. Tabuľka má celkovú kapacitu 307 miest a za \uv{plnú} sa považuje vtedy, keď obsadenosť presiahne 70\,\% jej maximálnej kapacity. Číslo 307 sme zvolili preto, že ide o dostatočne veľké prvočíslo, čo minimalizuje zhlukovanie a zabezpečuje rovnomernejšiu distribúciu. Veľkosť tabuľky sa dynamicky nemení, takže ak počet prvkov presiahne 214, ďalšie vloženie sa zamietne.
+
+    \subsection{Symbolová tabuľka}
+        Symbolová tabuľka, implementovaná v súbore \texttt{symtable.c}, je nadstavbou nad hashovacou tabuľkou. Uchováva takzvaný scope chain, ktorý je realizovaný pomocou abstraktného dátového typu zreťazeného zoznamu (linked list). Každý scope obsahuje vlastnú hashovaciu tabuľku s premennými deklarovanými v danom scope a ukazovateľ na nadradený scope (\uv{rodiča}). Pri deklarácii novej premennej sa záznam pridá do hashovacej tabuľky aktuálneho scopu. Pri použití existujúcej premennej sa postupne prehľadávajú všetky hashovacie tabuľky v rámci celého scope chainu, kým sa premenná nenájde. Vyhľadávanie začína v aktuálnom scope a postupuje smerom nahor cez ukazovatele na rodiča. Ak sa premenná nenájde, znamená to, že neexistuje, a prekladač vráti chybu 3. Funkcie sú uložené mimo scope chainu vo vlastnej hashovacej tabuľke. Tabuľka taktiež poskytuje funkcie \texttt{sym\_detach} a \texttt{sym\_restore}, ktoré umožňujú dočasne odpojiť a opätovne pripojiť scope chain; tieto funkcie sa využívajú pri analýze nenavštívených (\texttt{unvisited}) funkcií.
+    
+   \subsection{Precedenčná analýza výrazov}
+        Výrazy \texttt{\textless expression\textgreater} sa spracúvajú samostatným algoritmom precedenčnej syntaktickej analýzy za pomoci precedenčnej tabuľky. Algoritmus pracuje so zásobníkom, na ktorý ukladá terminály alebo operátory a čiastkové podstromy AST, pričom porovnáva aktuálny token a znak na vrchu zásobníka a rozhoduje o posune (\emph{shift}), redukcii (\emph{reduce}) alebo ukončení analýzy. Ak sa vo výraze vyskytne zložitejší prvok, ako napríklad identifikátor alebo volanie funkcie, parsuje to príslušná funkcia parsera a výsledný uzol AST sa vráti späť do vyhodnocovania výrazu.
+        
+    \subsection{AST}
+        Štruktúra \texttt{struct node} predstavuje jeden uzol abstraktného syntaktického stromu, ktorý ukladá rôzne konštrukcie programu, ako napríklad funkciu, blok, príkaz alebo výraz. Každý uzol má spoločnú hlavičku so základnými údajmi: typ uzla (\texttt{type}), riadok a stĺpec uzla. Špecifické polia pre jednotlivé konštrukcie sú uložené v \texttt{union} s názvom \texttt{as}, vďaka čomu zaberajú pevné miesto v pamäti, konkrétne počet bajtov najväčšej podštruktúry v \texttt{union}.
+
+\section{Využitie prostriedkov AI}
+    AI agentov sme pri práci na projekte využili, a to hlavne ako prostriedok na vysvetlenie princípov častí projektu alebo objasnenie nejasností, ku ktorým sme sa počas práce na projekte dostali. Zároveň sme AI využili na tvorbu priebežných testov projektu, jednotlivých častí, ale neskôr aj ako celku a rozšírení. Pri použití AI pri generovaní kódu sme boli transparentní a vygenerované časti sme označili, aj keď sa jednalo len o repetitívne časti kódu.
+\section{Záver}
+    Projekt sa nám podarilo úspešne dokončiť a otestovať v stanovenom časovom intervale aj s rozšíreniami. Hodnotíme ho ako jeden z najnáročnejších projektov, na akom sme doteraz robili, či už pre náročnosť zadania, alebo pre nedostatok skúseností s tímovou prácou na projekte takýchto rozmerov. Pri riešení projektu sme narazili aj na rôzne problémy, ktoré sa nám však podarilo vyriešiť. Celkovo však projekt hodnotíme pozitívne, nadobudli sme užitočné znalosti ohľadom prekladačov, ale aj cenné skúsenosti v práci s viacerými ľuďmi, ktoré sa nám hodia v práci na ďalších projektoch.
+
+\begin{thebibliography}{9}
+    \bibitem{ial-slides}
+    Burgetová, Ivana a Hranický, Radek. \emph{7. AVL strom, stromy s více klíči ve vrcholech, vyhledávání v tabulkách s rozptýlenými položkami.} [Vyhledávací tabulky III.]. Predmet IAL, Fakulta informačních technologií VUT v~Brně, 2026.
+\end{thebibliography}
+
+\section{Prílohy}
+\clearpage
+\subsection{LL -- gramatika}
+\label{sec:ll-grammar}
+
+\begin{enumerate}[label=\arabic*., leftmargin=2.2em, itemsep=1pt, parsep=0pt]
+  \item \texttt{<program> -> <prolog> <top\_list> EOF}
+  \item \texttt{<prolog> -> <opt\_eol> import IFJ26.* <line\_end>}
+  \item \texttt{<line\_end> -> EOL | EOF}
+  \item \texttt{<opt\_eol> -> <opt\_eol> | $\epsilon$}
+  \item \texttt{<top\_list> -> <top\_list> <top\_item> | $\epsilon$}
+  \item \texttt{<top\_item> -> <def> | <main> | <extention> | EOL}
+  \item \texttt{<def> -> ( <opt\_params> ) <opt\_colon> = <opt\_eol> <block>}
+  \item \texttt{<opt\_params> -> id : <type> <opt\_comma>}
+  \item \texttt{<opt\_comma> -> , | $\epsilon$}
+  \item \texttt{<type> -> int | unit | double | string | boolen | $\epsilon$}
+  \item \texttt{<main> -> @ main <opt\_eol> <def>}
+  \item \texttt{<extention> -> extention ( id : <type> ) EOL IND <opt\_eol> <def> DED}
+  \item \texttt{<block> -> <opt\_eol> <opt\_ind> <statement> <compound> <opt\_eol>}
+  \item \texttt{<compound> -> <opt\_if\_for\_while> <opt\_semicolon>}
+  \item \texttt{<opt\_semicolon> -> ; | $\epsilon$}
+  \item \texttt{<opt\_ind> -> IND | $\epsilon$}
+  \item \texttt{<statement> -> <opt\_valvar> | <opt\_return> | <opt\_while> | <opt\_if> | <opt\_for> | <opt\_asign> | <expression>}
+  \item \texttt{<opt\_if\_for\_while> -> <opt\_if> | <opt\_for> | <opt\_while> | $\epsilon$}
+  \item \texttt{<opt\_valvar> -> <val\_var> | $\epsilon$}
+  \item \texttt{<opt\_return> -> <return> | $\epsilon$}
+  \item \texttt{<opt\_while> -> <while> | $\epsilon$}
+  \item \texttt{<opt\_if> -> <if> | $\epsilon$}
+  \item \texttt{<opt\_for> -> <for> | $\epsilon$}
+  \item \texttt{<opt\_asign> -> <asign> | $\epsilon$}
+  \item \texttt{<val\_var> -> val | var id <opt\_colon\_type> = <expression>}
+  \item \texttt{<opt\_colon\_type> -> <colon\_type> | $\epsilon$}
+  \item \texttt{<colon\_type> -> : <type>}
+  \item \texttt{<return> -> return <opt\_expression>}
+  \item \texttt{<opt\_expression> -> <expression> | $\epsilon$}
+  \item \texttt{<while> -> while <expression> do <block>}
+  \item \texttt{<if> -> if <expression> then <block> <opt\_eol> <opt\_else>}
+  \item \texttt{<opt\_else> -> <else> | $\epsilon$}
+  \item \texttt{<else> -> <opt\_if> | <block>}
+  \item \texttt{<for> -> for <opt\_eol\_gen> do <block>}
+  \item \texttt{<opt\_eol\_gen> -> <opt\_eol> | $\epsilon$ <for\_gen> <for\_guard>}
+  \item \texttt{<for\_gen> -> id <expression> to | until <expression> <opt\_by>}
+  \item \texttt{<opt\_by> -> by | $\epsilon$}
+  \item \texttt{<for\_guard> -> if <expression> <opt\_eol> <opt\_for\_guard>}
+  \item \texttt{<opt\_for\_guard> -> <for\_guard> | $\epsilon$}
+  \item \texttt{<asign> -> id = <expression>}
+\end{enumerate}
+
+\clearpage
+\subsection{Precedenčná tabuľka}
+\label{sec:precedencna-tabulka}
+
+\begin{table}[H]
+  \centering
+  \caption{Precedenčná tabuľka}
+  \label{Tabulka 1}
+  \begin{tabular}{l *{17}{c}}
+    \toprule
+    $\backslash$ & $+$ & $-$ & $*$ & $/$ & $!$ & $($ & $)$ & $\$$ & $i$ & $<$ & $\leq$ & $>$ & $\ge$ & $==$ & $!=$ & $\&\&$ & $||$ \\
+    \midrule
+    $+$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $-$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $*$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $/$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $!$ & $>$ & $>$ & $>$ & $>$ & $<$ & $<$ & $>$ & $>$ & $<$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $($ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $==$ & $\mathrm{err}$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $)$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $\$$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    $i$ & $>$ & $>$ & $>$ & $>$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ & $>$ \\
+    $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\leq$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $\ge$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ & $>$ & $>$ \\
+    $==$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $!=$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $\mathrm{err}$ & $\mathrm{err}$ & $>$ & $>$ \\
+    $\&\&$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ \\
+    $||$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $>$ & $>$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ & $<$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\clearpage
+\subsection{LL tabuľka}
+\label{sec:precedencna-tabulka}
+\begin{table}[H]
+\centering
+\rotatebox{90}{%
+  \begin{minipage}{0.88\textheight}
+  \centering
+  \label{tab:ll-table}
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l *{24}{c}}
+    \toprule
+    \textbf{\large Neterminál} & \textbf{\large\texttt{import}} & \textbf{\large\texttt{EOL}} & \textbf{\large\texttt{EOF}} & \textbf{\large\texttt{@}/\texttt{main}} & \textbf{\large\texttt{extention}} & \textbf{\large\texttt{(}} & \textbf{\large\texttt{)}} & \textbf{\large\texttt{id}} & \textbf{\large\texttt{,}} & \textbf{\large\texttt{:}} & \textbf{\large\texttt{=}} & \textbf{\large\texttt{val}/\texttt{var}} & \textbf{\large\texttt{return}} & \textbf{\large\texttt{while}} & \textbf{\large\texttt{if}} & \textbf{\large\texttt{then}} & \textbf{\large\texttt{else}} & \textbf{\large\texttt{for}} & \textbf{\large\texttt{do}} & \textbf{\large\texttt{by}} & \textbf{\large\texttt{;}} & \textbf{\large\texttt{IND}} & \textbf{\large\texttt{DED}} & \textbf{\large\texttt{<expr>}} \\
+    \midrule
+    \textbf{\large\texttt{<program>}} & {\large 1} & {\large 1} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<prolog>}} & {\large 2} & {\large 2} & & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<line end>}} & & {\large 3} & {\large 3} & & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt eol>}} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & {\large 4} & & & & {\large 4} & {\large 4} & {\large 4} & {\large 4} & & & {\large 4} & & & & {\large 4} & & {\large 4} \\
+    \textbf{\large\texttt{<top list>}} & & {\large 5} & {\large 5} & {\large 5} & {\large 5} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<top item>}} & & {\large 6} & & {\large 6} & {\large 6} & {\large 6} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<def>}} & & & & & & {\large 7} & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt params>}} & & & & & & & & {\large 8} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt comma>}} & & & & & & & {\large 9} & & {\large 9} & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<type>}} & & & & & & & {\large 10} & & & & {\large 10} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<main>}} & & & & {\large 11} & & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<extention>}} & & & & & {\large 12} & & & & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<block>}} & & {\large 13} & & & & {\large 13} & & {\large 13} & & & & {\large 13} & {\large 13} & {\large 13} & {\large 13} & & & {\large 13} & & & & {\large 13} & & {\large 13} \\
+    \textbf{\large\texttt{<compound>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 14} & & & \\
+    \textbf{\large\texttt{<opt semicolon>}} & & {\large 14} & & & & & & & & & & & & {\large 14} & {\large 14} & & & {\large 14} & & & {\large 15} & & & \\
+    \textbf{\large\texttt{<opt ind>}} & & & & & & {\large 16} & & {\large 16} & & & & {\large 16} & {\large 16} & {\large 16} & {\large 16} & & & {\large 16} & & & & {\large 16} & & {\large 16} \\
+    \textbf{\large\texttt{<statement>}} & & & & & & & & {\large 17} & & & & {\large 17} & {\large 17} & {\large 17} & {\large 17} & & & {\large 17} & & & & & & {\large 17} \\
+    \textbf{\large\texttt{<opt if for while>}} & & {\large 18} & & & & & & & & & & & & {\large 18} & {\large 18} & & & {\large 18} & & & {\large 18} & & & \\
+    \textbf{\large\texttt{<opt valvar>}} & & & & & & & & {\large 19} & & & & {\large 19} & {\large 19} & {\large 19} & {\large 19} & & & {\large 19} & & & & & & {\large 19} \\
+    \textbf{\large\texttt{<opt return>}} & & & & & & & & {\large 20} & & & & & {\large 20} & {\large 20} & {\large 20} & & & {\large 20} & & & & & & {\large 20} \\
+    \textbf{\large\texttt{<opt while>}} & & & & & & & & {\large 21} & & & & & & {\large 21} & {\large 21} & & & {\large 21} & & & & & & {\large 21} \\
+    \textbf{\large\texttt{<opt if>}} & & & & & & & & {\large 22, 34} & & & & & & {\large 22, 34} & {\large 22, 34} & & & {\large 22, 34} & & & & & & {\large 22, 34} \\
+    \textbf{\large\texttt{<opt for>}} & & & & & & & & {\large 23} & & & & & & {\large 23} & {\large 23} & & & {\large 23} & & & & & & {\large 23} \\
+    \textbf{\large\texttt{<opt asign>}} & & & & & & & & {\large 24} & & & & & & {\large 24} & {\large 24} & & & {\large 24} & & & & & & {\large 24} \\
+    \textbf{\large\texttt{<val var>}} & & & & & & & & & & & & {\large 25} & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt colon type>}} & & & & & & & & & & {\large 26} & {\large 26} & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<colon type>}} & & & & & & & & & & {\large 27} & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<return>}} & & & & & & & & & & & & & {\large 28} & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt expression>}} & & {\large 29} & & & & & & & & & & & & & & & & & & & & & & {\large 29} \\
+    \textbf{\large\texttt{<while>}} & & & & & & & & & & & & & & {\large 30} & & & & & & & & & & \\
+    \textbf{\large\texttt{<if>}} & & & & & & & & & & & & & & & {\large 31} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt else>}} & & & & & & & & & & & & & & & & & {\large 32} & & & & & & & \\
+    \textbf{\large\texttt{<else>}} & & {\large 33} & & & & {\large 33} & & {\large 33} & & & & {\large 33} & {\large 33} & {\large 33} & {\large 33} & & & {\large 33} & & & & {\large 33} & & {\large 33} \\
+    \textbf{\large\texttt{<for>}} & & & & & & & & & & & & & & & & & & {\large 35} & & & & & & \\
+    \textbf{\large\texttt{<opt eol gen>}} & & {\large 36} & & & & & & {\large 36} & & & & & & & & & & & {\large 36} & & & & & \\
+    \textbf{\large\texttt{<for gen>}} & & & & & & & & {\large 37} & & & & & & & & & & & & & & & & \\
+    \textbf{\large\texttt{<opt by>}} & & & & & & & & & & & & & & & & & & {\large 38} & {\large 38} & & & & & \\
+    \textbf{\large\texttt{<for guard>}} & & & & & & & & & & & & & & & {\large 39} & & & & & & & & & \\
+    \textbf{\large\texttt{<opt for guard>}} & & & & & & & & & & & & & & & {\large 40} & & & & {\large 40} & & & & & \\
+    \textbf{\large\texttt{<asign>}} & & & & & & & & {\large 41} & & & & & & & & & & & & & & & & \\
+    \bottomrule
+    \end{tabular}%
+  }
+  \end{minipage}%
+}
+\end{table}
+
+\clearpage
+\subsection{Bloková schéma architektúry}
+\label{sec:blokova-schema}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,height=0.9\textheight,keepaspectratio]{inc/blokova_schema.pdf}
+  \label{fig:blokova-schema}
+\end{figure}
+
+\clearpage
+\subsection{Diagram automatu lexikálnej analýzy}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,height=0.9\textheight,keepaspectratio]{inc/automat.pdf}
+  \label{fig:Automat}
+\end{figure}
+\end{document}
