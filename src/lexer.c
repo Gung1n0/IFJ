@@ -1,3 +1,20 @@
+/*
+- implementation of a compiler for the language IFJ26
+- lexer.c
+- implementation of the lexical analyzer for IFJ26 language, reads source
+- code from stdin and produces a array of tokens for the parser
+ *
+- xmurina00 Adrián Murín
+ *
+- build as a finite state machine with static state variables. Indentation (IND/DED)
+- is tracked using IndentStack, newlines inside parentheses are ignored via
+- paren_level and nested block comments are counted with comm_lvl. Interpolated strings
+- (s"..." and s"""...""") are expanded into concatenation with toStr(...)
+- using a pending_tokens queue. On any lexical error, memory is freed and
+- the program exits with code 1.
+ *
+ */
+
 #include "token.h"
 #include "enums.h"
 #include <math.h>
@@ -38,6 +55,9 @@ static Token pending_tokens[16];
 static int pending_head = 0;
 static int pending_tail = 0;
 
+/// @brief Pridá token do pomocného frontu na neskoršie spracovanie (pre interpoláciu).
+/// @param type Typ vkladaného tokenu.
+/// @param text Textová hodnota tokenu (alebo NULL, ak token nemá dáta).
 void enqueue_token(TokenType type, const char *text) {
   Token t;
   t.type = type;
@@ -54,6 +74,7 @@ void enqueue_token(TokenType type, const char *text) {
   line_has_token = 1;
 }
 
+/// @brief Skontroluje kapacitu buffera a v prípade potreby ju zdvojnásobí.
 void bufferCheck() {
   if (buffer.len + 1 >= buffer.capacity) {
     buffer.capacity *= 2;
@@ -61,6 +82,7 @@ void bufferCheck() {
   }
 }
 
+/// @brief Uvoľní dynamicky alokovanú pamäť lexera (buffer a zásobník odsadenia) a nastaví ukazovatele na NULL.
 void free_lexer_globals() {
   if (buffer.data != NULL) {
     free(buffer.data);
@@ -72,6 +94,8 @@ void free_lexer_globals() {
   }
 }
 
+/// @brief Vyplní štruktúru tokenu jeho typom, aktuálnou pozíciou a textovými dátami z buffera (ak nejaké má)
+/// @param type Typ vytváraného tokenu.
 void fillToken(TokenType type) {
   if ((buffer.len > 0 || type == TOKEN_STRING_LITERAL) && buffer.data != NULL) {
     token.data = malloc(buffer.len + 1);
@@ -91,6 +115,9 @@ void fillToken(TokenType type) {
   }
 }
 
+/// @brief Načíta a vráti ďalší token zo vstupného súboru.
+/// @param source Ukazovateľ na otvorený vstupný súbor.
+/// @return Načítaný token (vrátane jeho typu, dát a pozície).
 Token get_token(FILE *source) {
   if (pending_head < pending_tail) {
     Token t = pending_tokens[pending_head++];
@@ -1083,6 +1110,9 @@ Token get_token(FILE *source) {
   }
 }
 
+/// @brief Načíta všetky tokeny zo vstupného súboru až po TOKEN_EOF a uloží ich do dynamického poľa.
+/// @param source Ukazovateľ na otvorený vstupný súbor.
+/// @return Štruktúra token_array obsahujúca pole všetkých načítaných tokenov a ich počet.
 token_array get_all_tokens(FILE *source) {
   token_array arr;
   arr.size = 64;
@@ -1105,6 +1135,8 @@ token_array get_all_tokens(FILE *source) {
   return arr;
 }
 
+/// @brief Uvoľní všetku dynamicky alokovanú pamäť poľa tokenov (vrátane ich dát) aj globálnych štruktúr lexera.
+/// @param arr Ukazovateľ na pole tokenov, ktoré sa má uvoľniť.
 void free_lexer_memory(token_array *arr) {
   for (int i = 0; i < arr->pos; i++) {
     if (arr->token_data[i].data != NULL) {
